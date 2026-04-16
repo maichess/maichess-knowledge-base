@@ -22,3 +22,5 @@ The ultimate goal however is a microservice-based web-app that can scale to pote
 When users visit the app for the first time they will be prompted to create an account or log in via typical OAuth providers like Google or GitHub. 
 
 After account creation they will be able to enter match-making to find other players to play against, play against one of the supported chess-engines or even just watch two chess engines play against each other.
+
+During a match against a bot or between two bots, users should be able to go back and forth between moves in the game to analyze strategies.
