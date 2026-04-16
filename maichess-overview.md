@@ -11,6 +11,7 @@ Initially, a monolithic native app was built using scala to get a feel for the d
 
 - A fully interactable console-based user interface, synchronous with a scalaFX graphical interface.
 - Multiple chess engine implementations of variying degrees of difficulty as computer-controlled opponents.
+- Multiple chess rule implementations.
 - FEN, PGN and SAN import/export as well as undo/redo functionality to analyze games.
 - A REST API interface for interacting with the game through HTTP requests.
 
@@ -19,4 +20,5 @@ Initially, a monolithic native app was built using scala to get a feel for the d
 The ultimate goal however is a microservice-based web-app that can scale to potentially millions of users. The proposed microservice structure is outlined further in [maichess-structure](maichess-structure.md).
 
 When users visit the app for the first time they will be prompted to create an account or log in via typical OAuth providers like Google or GitHub. 
+
 After account creation they will be able to enter match-making to find other players to play against, play against one of the supported chess-engines or even just watch two chess engines play against each other.
