@@ -9,16 +9,21 @@ with game length and gives the validator more data than it needs.
 
 ## Decision
 
-`ValidateMoveRequest` carries a `position_history` field: an ordered list of FEN strings for
-every position reached since the last pawn move or capture (the same window used by the
+`ValidateMoveRequest` carries a `position_history` field: an ordered list of **position keys**
+for every position reached since the last pawn move or capture (the same window used by the
 fifty-move clock, since repetition cannot span an irreversible move).
+
+A position key is the first four space-separated fields of a FEN string:
+`<pieces> <side-to-move> <castling> <en-passant>`. The half-move clock and full-move number are
+excluded because they differ between repetitions and must not affect identity comparison.
 
 The move validator is the **sole authority** over this list:
 
-- It receives the list from the caller, appends the resulting position FEN when a move is valid,
+- It receives the list from the caller, appends the resulting position key when a move is valid,
   and returns the updated list in `ValidateMoveResponse.position_history`.
-- When the move is a pawn move or capture the validator resets the list (returns it empty),
-  because no prior position can recur after an irreversible move.
+- When the move is a pawn move or capture (detected via `halfMoveClock == 0` in the resulting
+  board) the validator resets the list to contain only the new position key, because no prior
+  position can recur after an irreversible move.
 - When a move is invalid the validator returns no updated list; the caller keeps the existing one.
 
 The match manager **stores and relays** the list alongside game state but **never modifies it**.
@@ -43,9 +48,11 @@ call direction remains match-manager → move-validator only.
 
 ## Threefold repetition detection
 
-The validator checks whether the resulting position FEN appears in `position_history` at least
-twice before appending it. If so, the position will appear three times total, and the validator
-returns `GAME_RESULT_THREEFOLD_REPETITION`.
+The validator extracts the position key from the resulting FEN and counts its occurrences in the
+incoming `position_history`. If the count is ≥ 2, the position now appears three times total and
+the validator returns `GAME_RESULT_THREEFOLD_REPETITION` (the new occurrence is not appended —
+the game is over). Because the history is bounded by irreversible moves, this check is only
+performed when the resulting `halfMoveClock` is non-zero.
 
 ## Fifty-move rule
 
