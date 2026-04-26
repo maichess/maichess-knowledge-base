@@ -4,7 +4,7 @@ Maichess is a web-based, complete chess application featuring variable game rule
 
 ## Microservices
 
-It is built as a microservices architecture deployed via docker compose. The [client](##client) communicates with [Match Maker](##match-maker), [Match Manager](##match-manager), [Auth](##auth) and [User](##user) services via HTTP, microservices communicate with each other via gRPC.
+It is built as a microservices architecture deployed via docker compose. The [client](##client) communicates with [Match Maker](##match-maker), [Match Manager](##match-manager), [Auth](##auth) and [User](##user) services via HTTP, microservices communicate with each other via gRPC. Databases are accessed via database services that handle db connections and queries. 
 
 ### Client
 
@@ -65,6 +65,15 @@ Accepts login and registration requests.
 If it is a login request, uses read-only db access to verify credentials, if registration requests creation of a new user from the [User service](##user). 
 
 Issues JWT tokens if the login or registration was successful.
+
+### Database Service
+
+Handles all database access for a single configured domain. Exposes a generic CRUD interface over gRPC and translates requests into DB-specific queries internally, keeping all DB-specific code isolated to adapter implementations.
+
+Two instances are deployed:
+
+- `user-db` — PostgreSQL, serving [User](##user) and [Auth](##auth). The Auth service is restricted to read-only operations via instance configuration.
+- `match-db` — MongoDB, serving [Match Manager](##match-manager).
 
 ## Databases
 
