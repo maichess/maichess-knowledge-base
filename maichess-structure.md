@@ -46,9 +46,11 @@ Accepts a full game state and proposed next move and checks for legality and win
 
 *Scala Zio*
 
-Accepts a full game state and a bot identifier, then calculates the next following move based on the specified bot's logic. 
+Exposes two capabilities over gRPC:
 
-Once a move has been calculated, calls back to [Match Manager](##match-manager) to execute the move.
+**Move calculation (`GetBestMove`)** — accepts a board position (FEN), a bot identifier, and an optional time limit in milliseconds. Returns the best move in UCI notation plus a centipawn evaluation. If no time limit is provided, the engine searches without a time constraint. Once a move has been calculated, calls back to [Match Manager](##match-manager) to execute the move.
+
+**Position analysis (`AnalyzePosition`)** — server-streaming endpoint. Accepts a position (FEN), a bot identifier, and the number of lines (`line_count`) to evaluate simultaneously (equivalent to UCI `MultiPV`). Streams one `AnalysisUpdate` per completed search depth; each update contains all requested lines ranked by evaluation, each with its full principal variation (move sequence). The engine decides internally when to stop streaming (depth cap or no further improvement). Callers may cancel the stream at any time via standard gRPC cancellation.
 
 ### User 
 
