@@ -10,9 +10,9 @@ It is built as a microservices architecture deployed via docker compose. The [cl
 
 *Next.js, Tailwind.*
 
-Only user-facing service. 
+Only user-facing service.
 
-Communicates with [Match Maker](##match-maker) to initate sessions and then with [Match Manager](##match-manager) to play a session.
+Communicates with [Match Maker](##match-maker) to initiate sessions and then with [Match Manager](##match-manager) to play a session. Connects to [Socket Service](##socket-service) via socket.io for real-time match events. Connects to [Analysis WebSocket Service](##analysis-websocket-service) via plain WebSocket for real-time analysis delivery. Communicates with [Analysis](##analysis) for game persistence.
 
 ### Match Maker
 
@@ -52,6 +52,49 @@ Exposes two capabilities over gRPC:
 
 **Position analysis (`AnalyzePosition`)** — server-streaming endpoint. Accepts a position (FEN), a bot identifier, and the number of lines (`line_count`) to evaluate simultaneously (equivalent to UCI `MultiPV`). Streams one `AnalysisUpdate` per completed search depth; each update contains all requested lines ranked by evaluation, each with its full principal variation (move sequence). The engine decides internally when to stop streaming (depth cap or no further improvement). Callers may cancel the stream at any time via standard gRPC cancellation.
 
+### Analysis
+
+*ASP.NET*
+
+Manages saved analysis games and relays engine analysis streams.
+
+Exposes a REST API for game persistence: users can import games from PGN or copy a finished
+match, save them, and retrieve them later. Each saved game stores the full move list and the FEN
+after every move so the client can navigate positions without recomputing them.
+
+For real-time analysis the service exposes a gRPC streaming endpoint consumed by the Analysis
+WebSocket Service. When that service opens a `StreamPositionAnalysis` call, the analysis service
+proxies it to the Engine service's `AnalyzePosition` endpoint and streams the depth-by-depth
+updates back. The client communicates with the Analysis WebSocket Service over WebSocket; it
+never calls the analysis service directly for streaming.
+
+See [analysis-service.md](analysis-service.md) for the full data model, protocol, and dependency map.
+
+### Socket Service
+
+*Node.js / socket.io*
+
+Real-time event push gateway. Maintains persistent socket.io connections from clients and exposes
+a gRPC `EmitEvent` endpoint so other services can push events to a connected user without knowing
+anything about WebSocket internals.
+
+Authenticates connecting clients by calling `Auth.ValidateToken` via gRPC. Other services
+(Match Manager, Match Maker) call `Socket.EmitEvent` to deliver events such as `move_made`,
+`match_ended`, and `matched`.
+
+### Analysis WebSocket Service
+
+*(Planned — not yet implemented)*
+
+Manages persistent plain WebSocket connections from the client for real-time analysis delivery.
+Endpoint: `ws://analysis-ws-service/analysis`. Authenticates via JWT query parameter on
+connection, then calls the Analysis Service via gRPC to obtain an analysis stream and forwards
+each depth update as a JSON WebSocket message. Only one analysis stream per connection is active
+at a time; a `start_analysis` message implicitly cancels any running stream before starting the
+new one.
+
+See [analysis-service.md](analysis-service.md) for the full WebSocket protocol.
+
 ### User 
 
 *ASP.NET*
@@ -75,11 +118,11 @@ Handles all database access for a single configured domain. Exposes a generic CR
 Two instances are deployed:
 
 - `user-db` — PostgreSQL, serving [User](##user) and [Auth](##auth). The Auth service is restricted to read-only operations via instance configuration.
-- `match-db` — MongoDB, serving [Match Manager](##match-manager).
+- `match-db` — MongoDB, serving [Match Manager](##match-manager) and [Analysis](##analysis).
 
 ## Databases
 
 Two main databases are involved.
 
 - **Postgres** for storing user data that is queried by [User](##user) and [Auth](##auth).
-- **MongoDB** for storing game states queried by [Match Manager](#match-manager).
+- **MongoDB** for storing game states queried by [Match Manager](#match-manager) and analysis games queried by [Analysis](#analysis).
