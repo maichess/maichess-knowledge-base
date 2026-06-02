@@ -96,6 +96,32 @@ user id) and calls Match Maker's bearer-protected `POST /matches/bot-vs-bot`,
 which now forwards that identity as `CreateMatchRequest.created_by`. Custom start
 positions ride the same path via the new `start_fen` field.
 
+## Client (Dev section)
+
+The Dev section is `dev_mode`-gated (see `dev-mode.md`). The client-side arena UI
+lives under `app/dev/` with server-side `requireDevUser()` guards and follows the
+standard proxy pattern (`app/api/dev/arena/` routes forwarding to the arena service
+with Bearer auth via `getBearerToken()`).
+
+- **Dev landing** (`/dev`): links to spawn setups and results, plus a global
+  concurrency limit control editable by any dev user.
+- **Spawn** (`/dev/arena/new`): tabbed form for tournament, matrix, and single
+  setups. Multi-select bots (from `useBots`), editable FEN list, time-format
+  picker (from `useTimeFormats`). Submits create the collection via proxy and
+  redirect to the collection detail.
+- **Results** (`/dev/arena` list + `/dev/arena/[id]` detail): running collections
+  poll for live progress. The detail page renders **type-specific views**:
+  - **Tournament → bracket tree**: rounds as columns, pairings as nodes with
+    scores and per-game links.
+  - **Matrix → grid**: bots on both axes, cells showing aggregate scores, with
+    a full game list.
+  - **Single → labelled list**: score summary plus per-game rows with FEN label,
+    bot colors, and result.
+- **Live games** link into the existing Watch viewer (`/watch/[id]`) — the arena
+  does not have its own board.
+
+Models in `lib/models/arena.ts`, hooks in `lib/hooks/useArena*.ts`.
+
 ## Testing
 
 Pure domain (expansion, scoring, tie-break ladder, bracket, launch planning) and
