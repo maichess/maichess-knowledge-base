@@ -66,6 +66,31 @@ directly. This keeps the published event contract stable while CDC handles deliv
 - Connector offsets/status topics are internal Connect topics — provision them in the topic-init
   job alongside the existing event topics.
 
+## Implementation notes (feature-prompts/10 — user CDC shipped)
+
+The Postgres → `user.cdc.v1` → `user.events.v1` path is implemented:
+
+- **Sole producer.** The User service never actually shipped the in-process `user.events`
+  emitter the dual-write story warned about (the event rollout never reached User). CDC is
+  therefore the *only* producer of `user.events.v1`, not a replacement for a running emitter.
+  The write path is Postgres-only by construction.
+- **Curation lives in the User service** as a gated BackgroundService relay
+  (`Kafka/UserCdcRelay.cs`, excluded) delegating to a pure, fully-tested transform
+  (`Kafka/CdcUserEventMapper.cs`). Tapping the WAL underneath DatabaseService does not make the
+  write path a dual write — the relay is downstream of the commit. The relay is off by default
+  (`Cdc:Enabled`) and enabled by Helm where `kafkaConnect.enabled`.
+- **Mapping.** `op c/r` → `UserRegistered`; `op u` → `ProfileUpdated` (username/dev_mode changed)
+  and/or `RatingUpdated` (rating/rating_deviation/volatility/elo changed); `op d` → nothing.
+  `event_id` is a deterministic hash of `(userId, lsn, event_type)` so replaying the same WAL
+  position is idempotent; `sequence` is the Postgres LSN.
+- **REPLICA IDENTITY FULL** is set on `users` (user-db migration) so updates carry a full
+  before-image; without it Postgres ships only the PK and per-field change detection is
+  impossible. The mapper degrades safely (emits both profile + rating events) if a before-image
+  is missing.
+- **Contract gap deferred to Stage 3.** The frozen `user.events` payloads carry no
+  `wins/losses/draws`, which the Stage-3 Redis replica needs. Closing that is `feature-prompts/11`'s
+  job via the publish/bump handoff — not changed here, to keep the topic contract stable.
+
 ## Migration order
 
 1. Stand up Kafka Connect + the Postgres connector; emit `user.cdc.v1` (no consumer yet).
