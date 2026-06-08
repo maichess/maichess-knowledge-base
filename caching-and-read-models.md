@@ -94,6 +94,42 @@ Implemented in match-manager (`feature-prompts/09`). Concrete choices made:
 - **Canonical ids** (from `feature-prompts/08`) are used for every cache key and eviction, so the
   cache and the DB filter agree.
 
+### Stage 3 implementation notes (user read models — `feature-prompts/11`)
+
+Both materialisations of the compacted `user.events.v1` are now in the codebase, on purpose:
+
+- **Redis replica (default), in match-manager.** A plain Kafka consumer
+  (`Kafka/UserReplicaConsumer.cs`, `[ExcludeFromCodeCoverage]`) reads `user.events.v1`
+  from the beginning through a pure projection (`Kafka/UserReplicaProjection.cs`) into the
+  shared Redis hash `user:{id}`, behind the `Data/IUserReplica` seam (Redis impl
+  `Data/RedisUserReplica.cs`). The two hot `GetUser` callers — match-end rating enrichment
+  (`MatchService.ResolveOpponentRatingAsync`) and username resolution
+  (`MatchService.ResolveUsernameAsync`, used by the REST player-response mapping) — read the
+  replica first and fall back to `GetUser` on a cold miss. Replica fields are **nullable**,
+  so a partially-warmed row (e.g. only a `UserRegistered` snapshot, no rating yet) still
+  defers to `GetUser` rather than rating against a default. Rebuildable by resetting the
+  `match-manager-user-replica` consumer group. The same `user:{id}` namespace will carry
+  leaderboard (Stage 4) and `flagged` (anti-cheat) fields.
+
+- **Streamiz KTable (the one KTable), in Match Maker only.** `Streaming/UserRatingTopology.cs`
+  folds `user.events.v1` (keyed by userId) into a RocksDb-backed KTable of live ratings
+  (`user-ratings-store` + its changelog) via an aggregate — an aggregate, not `MapValues`,
+  because only `RatingUpdated` carries a rating and a profile-only update must not clobber
+  it. `matchmaking.events.v1` (`PlayerEnqueued`, keyed by playerId) **co-partitions** with
+  it (both 3 partitions), so an inner KStream-KTable **join** tags each enqueue with the
+  live rating; the inner join naturally excludes users the KTable does not yet know.
+  Skill-based pairing (`MatchingService`) reads the store locally via interactive queries
+  (`IUserRatingStore`), pairs the minimum rating gap, and falls back to FIFO when the pool
+  is small or a rated pair cannot be claimed. The topology is unit-tested with Streamiz's
+  `TopologyTestDriver`. Streamiz stays in Match Maker only: anywhere `user.events` does not
+  co-partition with the input stream it would force a GlobalKTable (full per-pod replica) —
+  strictly worse than the Redis replica.
+
+- **Contract.** `user.events.v1`'s `RatingUpdated` payload gained `wins/losses/draws`
+  (defaults, backward-compatible) so the replica can carry stats; the User-service CDC
+  mapper (`feature-prompts/10`) populates them. No `PlatformProtos` bump (Avro schema, not
+  gRPC).
+
 ## Deployment
 
 - Redis already ships in Helm; new caches reuse it (note future sharding if `ZSET`/replica load
