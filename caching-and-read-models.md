@@ -69,6 +69,31 @@ Examples of the one rule:
 No TTL-based "eventually correct" caches for mutable data; correctness comes from the event, not
 from expiry.
 
+### Stage 1 implementation notes (finished-match read model — `feature-prompts/09`)
+
+Implemented in match-manager (`feature-prompts/09`). Concrete choices made:
+
+- **Service seam, not a new layer.** Caching lives behind an `IMatchCache` adapter
+  (`Data/IMatchCache.cs`, Redis impl `Data/RedisMatchCache.cs`) injected into `MatchService`,
+  mirroring the existing `IMatchRepository`/`MatchRepository` split. `RedisMatchCache` is
+  `[ExcludeFromCodeCoverage]` (needs live Redis); the orchestration in `MatchService` is unit-tested
+  against a mocked `IMatchCache`. REST/gRPC callers are unchanged.
+- **Invalidation is inline, not a separate consumer.** match-manager *is* the service that ends a
+  match, so the "MatchEnded fact" is handled at the existing end paths (move-ends-game, resign,
+  accept-draw, timeout watchdog, external sync) via one private `OnMatchEndedAsync`, rather than a
+  second Kafka consumer re-reading `match.events` the same pod just produced. It refreshes
+  `match:{id}` and evicts the page cache for white, black, and `created_by` (deduplicated, canonical
+  ids).
+- **Only the *ended* page is cached.** `ListUserMatches` caches the `ended` status filter only
+  (`matches:user:{userId}:ended:{page}:{pageSize}`); the `ongoing` filter always reads live, since
+  an ongoing list changes on match *creation* (not a signal this cache consumes). The finished-match
+  doc cache (`match:{id}`) is likewise written only for non-`ongoing` statuses.
+- **Per-user SCAN for eviction**, not a tracked index set: under `allkeys-lru` an index could be
+  evicted independently of the page keys it references, leaking stale entries. The `matches:user:{id}:*`
+  pattern keeps the scanned keyspace small.
+- **Canonical ids** (from `feature-prompts/08`) are used for every cache key and eviction, so the
+  cache and the DB filter agree.
+
 ## Deployment
 
 - Redis already ships in Helm; new caches reuse it (note future sharding if `ZSET`/replica load
