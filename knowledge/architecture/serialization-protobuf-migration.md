@@ -4,6 +4,16 @@
 **Supersedes (eventually):** the Avro/Schema-Registry serialization section of
 [event-driven-architecture.md](event-driven-architecture.md).
 
+> **Progress (task `01`):** the Protobuf event schemas now exist in
+> `maichess-api-contracts/protos/events/v1/` — one file per topic
+> (`socket_outbound`, `matchmaking_events`, `match_commands`, `match_events`,
+> `analysis_commands`, `analysis_events`, `user_events`, `cheat_events`), all in package
+> `maichess.events.v1`, mirroring the `events/v1/*.avsc` field-for-field. `buf lint`/`build` pass and
+> codegen emits C#/Scala/TS. The `.avsc` files stay in place until each topic cuts over (task `02`).
+> The per-language serde helpers and consumer version bumps are **pending the v0.6.0 publish**
+> (publish-first, below); they are queued in each serde service's `CONTRACT_NOTES.md`. No topic has
+> switched yet — the wire is still Avro.
+
 ## Context
 
 The first Kafka topics shipped on **Avro + Confluent Schema Registry** (BACKWARD compat). The
@@ -65,6 +75,24 @@ right up until the last topic is converted.
 Generated Protobuf packages publish from `maichess-api-contracts` on a `v*` tag exactly like the
 existing `Maichess.PlatformProtos` flow; consumers bump the pinned version per the standard
 handoff.
+
+### Publish-first: a proto change is not usable until the package is published
+
+**Editing a `.proto` does nothing for the services on its own.** The generated types only reach a
+service through the published `Maichess.PlatformProtos` / `@maichess/platform-protos` /
+`io.github.maichess:platform-protos` package. So whenever `maichess-api-contracts/` changes
+(new event schemas, field changes, anything under `protos/`):
+
+1. **Publish first.** The user commits, tags `vX.Y.Z`, and pushes the contracts repo so CI builds
+   and publishes the package. A fresh agent's shell **cannot** restore a just-published version
+   (GitHub Packages auth / propagation lag), so this is always a human handoff — see
+   [tasks/conventions.md](../../tasks/conventions.md) §2.
+2. **Then bump consumers.** Reconcile the pinned version in **every** consuming service
+   (`*.csproj`, `build.sbt`, `package.json`) to the newly published version, not just the one you
+   touched — versions have drifted between services before.
+3. **Then write the code** that uses the new types (serde glue, producers, consumers). It cannot
+   compile or be tested until steps 1–2 land, so until then the work is documented as a blocker in
+   each affected service's `CONTRACT_NOTES.md`.
 
 ### Known serde touch-points (kept localised on purpose)
 
