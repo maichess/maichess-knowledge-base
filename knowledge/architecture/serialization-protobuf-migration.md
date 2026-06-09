@@ -4,15 +4,20 @@
 **Supersedes (eventually):** the Avro/Schema-Registry serialization section of
 [event-driven-architecture.md](event-driven-architecture.md).
 
-> **Progress (task `01`):** the Protobuf event schemas now exist in
+> **Progress (task `01`):** the Protobuf event schemas exist in
 > `maichess-api-contracts/protos/events/v1/` — one file per topic
 > (`socket_outbound`, `matchmaking_events`, `match_commands`, `match_events`,
 > `analysis_commands`, `analysis_events`, `user_events`, `cheat_events`), all in package
 > `maichess.events.v1`, mirroring the `events/v1/*.avsc` field-for-field. `buf lint`/`build` pass and
-> codegen emits C#/Scala/TS. The `.avsc` files stay in place until each topic cuts over (task `02`).
-> The per-language serde helpers and consumer version bumps are **pending the v0.6.0 publish**
-> (publish-first, below); they are queued in each serde service's `CONTRACT_NOTES.md`. No topic has
-> switched yet — the wire is still Avro.
+> codegen emits C#/Scala/TS. Contracts **v0.6.0** is published, every consumer is pinned at it
+> (`*.csproj`, `build.sbt`, `package.json`), and the per-language serde helpers + round-trip tests
+> are written: C# `ProtobufEventSerdes.cs` (match-maker, match-manager), Scala
+> `ProtobufEventSerdes.scala` (move-validator, engine), Node `src/kafka/protobuf-serde.ts`
+> (socket-service). Serde plumbing only — **no producer/consumer is switched**; that is task `02`.
+> Local build/test of each service is the remaining handoff (a fresh agent shell can't restore the
+> published package from GitHub Packages without a token); the verify command per service is in its
+> `CONTRACT_NOTES.md`. The `.avsc` files stay in place until each topic cuts over (task `02`). No
+> topic has switched yet — the wire is still Avro.
 
 ## Context
 
