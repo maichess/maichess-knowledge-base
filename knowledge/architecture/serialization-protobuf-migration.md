@@ -16,8 +16,17 @@
 > (socket-service). Serde plumbing only — **no producer/consumer is switched**; that is task `02`.
 > Local build/test of each service is the remaining handoff (a fresh agent shell can't restore the
 > published package from GitHub Packages without a token); the verify command per service is in its
-> `CONTRACT_NOTES.md`. The `.avsc` files stay in place until each topic cuts over (task `02`). No
-> topic has switched yet — the wire is still Avro.
+> `CONTRACT_NOTES.md`.
+>
+> **Task `02` is done:** the three live topics — `socket.outbound.v1`, `matchmaking.events.v1`,
+> `match.commands.v1` — are migrated to Protobuf. Producers emit only proto; consumers dual-read
+> Avro *or* Protobuf (discriminating on the Confluent schema id's registry type) so the cutover is
+> reversible, and each fire-and-forget consume path now WARN-logs decode failures. The three `.avsc`
+> files are retired (canonical + every embedded copy). The socket caveat (match-manager's socket
+> push reverted to gRPC, failing `socket.outbound` silently) is resolved: `Socket__Transport: kafka`.
+> The Avro **read** arms remain until the registry is removed in task `09`. No new Avro is on the
+> wire; the remaining `.avsc` belong to topics that have not shipped a producer yet
+> (`match.events`, `user.events`, `analysis.*`, `cheat.events`, `matchmaking.commands`).
 
 ## Context
 

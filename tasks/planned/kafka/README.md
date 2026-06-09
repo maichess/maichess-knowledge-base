@@ -25,25 +25,26 @@ The end state is Protobuf on every topic with the Schema Registry eventually rem
 
 ## Current state (what already runs on Kafka)
 
-Live today, **in Avro**, gated by the `Socket:Transport` config flag (`kafka` is the code default;
-Kafka is `enabled` in staging only — prod has `kafka.enabled: false`):
+Live today, **in Protobuf** (these three migrated off Avro in task `02`), gated by the
+`Socket:Transport` config flag (`kafka` is the code default; Kafka is `enabled` in staging only —
+prod has `kafka.enabled: false`):
 
-- **`socket.outbound.v1`** client fan-out — socket-service consumes (`src/kafka/consumer.ts`) and
-  fans out over socket.io. Producers: match-manager `Events/KafkaSocketNotifier.cs`, match-maker
+- **`socket.outbound.v1`** client fan-out — socket-service consumes (`src/kafka/consumer.ts`, dual-read)
+  and fans out over socket.io. Producers: match-manager `Events/KafkaSocketNotifier.cs`, match-maker
   `Queue/KafkaMatchmakingNotifier.cs`.
-- **`matchmaking.events.v1`** — match-maker publishes `PlayersMatched` (`Queue/KafkaMatchmakingNotifier.cs`).
-  Matchmaking status is still **polled** by the client, so the `matched` push is not yet load-bearing.
+- **`matchmaking.events.v1`** — match-maker publishes `PlayersMatched` (`Queue/KafkaMatchmakingNotifier.cs`);
+  the ratings topology (`Streaming/UserRatingTopology.cs`) consumes it (dual-read). Matchmaking status
+  is still **polled** by the client, so the `matched` push is not yet load-bearing.
 - **`match.commands.v1`** `CreateMatchCommand` — match-maker `Queue/KafkaMatchCreator.cs` produces;
-  match-manager `Events/MatchCommandConsumer.cs` materialises the match with the caller-minted id.
-  Bot-vs-bot creation stays synchronous gRPC (needs `start_fen` validation).
+  match-manager `Events/MatchCommandConsumer.cs` materialises the match with the caller-minted id
+  (dual-read). Bot-vs-bot creation stays synchronous gRPC (needs `start_fen` validation).
 
-> ⚠️ **Open caveat (task `02` must resolve):** match-manager's socket push is currently reverted to
-> gRPC (`Socket__Transport: grpc` in `maichess-deploy/helm/maichess/values.yaml`, **base** values).
-> Live moves weren't appearing in staging because the `socket.outbound` hop failed **silently**
-> (publish + consume are fire-and-forget). The code is correct; the failure was runtime. Verify the
-> hop end-to-end in staging (`kubectl logs` socket-service + match-manager; grep
-> `outbound|consumer|decode`; distinguish consumer-disabled / decode-error / broker-unreachable) and
-> flip back to `kafka` as part of `02`.
+The consumers **dual-read** Avro and Protobuf (discriminating on the Confluent schema id's registry
+type) so already-enqueued Avro messages still decode and the cutover is reversible; nothing *produces*
+Avro any more, and the three `.avsc` files are retired. The Avro read arm is removed in task `09`
+(registry removal). The socket caveat — match-manager's socket push had been reverted to gRPC,
+failing the `socket.outbound` hop silently — is **resolved**: `Socket__Transport: kafka` and every
+fire-and-forget consume path now WARN-logs a decode failure instead of dropping silently.
 
 Everything else is **synchronous gRPC**: the whole move loop
 (`MatchService.MakeMoveAsync`/`ProcessBotMoveAsync` → `MovesClient.ValidateMove`,
