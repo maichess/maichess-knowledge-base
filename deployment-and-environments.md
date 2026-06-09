@@ -7,10 +7,57 @@
 
 ## Context
 
-maichess runs on a **single k3s node** (one droplet). Both environments live on that
-node as separate namespaces, sharing the chart in `maichess-deploy`. Because the node
-is small, a full `kubectl rollout restart` is slow and resource-tight — expect rollouts
-to take minutes and avoid restarting everything unless a deploy requires it.
+maichess runs on a **three-node k3s cluster** joined over a **WireGuard mesh**
+(hub-and-spoke; nodes addressed on `10.99.0.0/24`). Both environments live on the
+cluster as separate namespaces (`maichess`, `maichess-staging`), sharing the chart in
+`maichess-deploy`. Only the hub node is internet-facing; the workers are reachable only
+over the overlay, so the public ingress / DNS A-records always point at the hub.
+
+## Cluster topology & scheduling
+
+| Node | wg IP | `maichess/role` | Taint | Size | Purpose |
+|---|---|---|---|---|---|
+| `ubuntu` | 10.99.0.1 | `primary` | none | 6 CPU / 7.7Gi | control-plane + **public ingress** (`217.160.58.173`); holds all stateful data |
+| `vps-771074` (`maichess-mega`) | 10.99.0.3 | `primary` | none | 16 CPU / 31Gi | big internal worker added 2026-06 to spread load |
+| `flost` | 10.99.0.2 | `burst` | `maichess/role=burst:NoSchedule` | 4 CPU / 15Gi | burst-overflow only (behind NAT, no public IP) |
+
+- **Networking:** flannel **VXLAN** over the wg node IPs. Each node gets a `/24` from
+  the `10.42.0.0/16` pod CIDR; services are `10.43.0.0/16`. wg peers only need each
+  other's `/32` (VXLAN encapsulates to the node IP).
+- **Scheduling (chart helpers in `_helpers.tpl`):** stateful services
+  (`affinityPrimary`) hard-pin to `maichess/role=primary` — i.e. `ubuntu` **or**
+  `maichess-mega`; the scheduler favours the emptier/bigger mega. Burst-eligible
+  services (`affinityBurstEligible` + `tolerationBurst`) prefer primary but may spill
+  onto `flost`. Plain app pods (no affinity) schedule on any untainted node and so
+  spread across `ubuntu`/`maichess-mega` but never `flost`.
+- **Storage pins stateful to `ubuntu`.** The default `local-path` StorageClass binds
+  every PVC to the node that first provisioned it (all on `ubuntu`). So StatefulSets
+  (postgres/mongo/redis/kafka/tempo) and PVC-backed pods **cannot be rebalanced** to
+  another node without migrating their data — only stateless Deployments move.
+- **Rebalancing:** a `kubectl rollout restart deployment -n <ns>` reschedules the
+  stateless pods; the scheduler then spreads them across `ubuntu` + `maichess-mega`
+  (this is how ubuntu's RAM was brought from ~78% to ~47%).
+
+### apiserver-endpoint quirk (affects worker nodes)
+
+`kubectl get endpoints kubernetes` resolves to the hub's **public IP**
+(`217.160.58.173:6443`), which is firewalled from the wg-only nodes. Consequences:
+
+- `kubectl exec` / `logs` / `port-forward` to pods on **agent** nodes (`flost`,
+  `maichess-mega`) fail with a 502 (the k3s remotedialer dials the public IP and times
+  out). Works fine for pods on `ubuntu`.
+- Pods that call the Kubernetes API via the `kubernetes.default` service (e.g.
+  **kube-state-metrics**, prometheus's in-cluster service discovery) break on the
+  worker nodes. They are pinned to the control-plane node via
+  `nodeSelector: node-role.kubernetes.io/control-plane=true` (set on
+  `prometheus.server` and `prometheus.kube-state-metrics` in `values.yaml`).
+- Plain app pods don't use the API (they reach DBs/services via ClusterIP = kube-proxy
+  data plane), so they run anywhere. The clean long-term fix is to set the k3s server
+  `advertise-address: 10.99.0.1` (keep the public IP in `tls-san`) and restart the
+  server — not yet done.
+
+Because everything stateful is on `ubuntu` (8Gi), a full `kubectl rollout restart` is
+still resource-tight on that node — avoid restarting everything unless a deploy needs it.
 
 ## Environments
 
@@ -33,11 +80,14 @@ to take minutes and avoid restarting everything unless a deploy requires it.
 
 ## Access
 
-- SSH `ionos` → `root` on the node (full access; reads the kubeconfig, edits
-  `/etc/maichess/*`).
+- SSH `ionos` → `root` on the **hub** node `ubuntu` (full access; reads the kubeconfig,
+  edits `/etc/maichess/*`, runs `kubectl`/`helm`).
 - SSH `ionos-maichess` → the `maichess` deploy user; the checked-out deploy repo is
   `/home/maichess/maichess-deploy`.
-- kubeconfig: `/etc/rancher/k3s/k3s.yaml`.
+- SSH `maichess-mega` → the `vps-771074` worker node (passwordless sudo).
+- `flost` has no SSH alias and is unreachable from the hub (no key) — can't be edited
+  remotely.
+- kubeconfig: `/etc/rancher/k3s/k3s.yaml` (only on the hub).
 
 ## Secrets
 
