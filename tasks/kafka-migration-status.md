@@ -1,7 +1,7 @@
 # Event-Driven Migration — Status & Remaining Work
 
 **As of:** 2026-06-09
-**Companion to:** [event-driven-architecture.md](event-driven-architecture.md) (the ADR — read it first for the
+**Companion to:** [event-driven-architecture.md](../knowledge/architecture/event-driven-architecture.md) (the ADR — read it first for the
 target design, topics, envelope, and the match-flow diagram).
 
 This is a handoff/progress log for the Kafka migration so the work can be picked up mid-flight.
@@ -14,7 +14,7 @@ The rollout follows the 6-phase strangler plan at the end of the ADR.
 | 0 | Foundations: ADR, Avro schemas, Helm (Kafka + registry + topics), CONTRACT_NOTES | **Done** |
 | 1 | `socket.outbound.v1` fan-out | **Code complete; match-manager transport reverted to gRPC (see caveat)** |
 | 2 | Matchmaking facts/pushes | **Done** |
-| 3 | Match move loop (the core) | **Not started**, except an idle CreateMatch consumer |
+| 3 | Match move loop (the core) | **CreateMatch over Kafka done; move loop not started** |
 | 4 | Analysis over Kafka | **Not started** |
 | 5 | User/rating events | **Not started** |
 | 6 | Decommission dead gRPC | **Not started** |
@@ -59,14 +59,26 @@ Ideally do this together with Phase 3 so the fan-out and the move loop are valid
 
 ### Phase 3 — Match move loop (the core)
 
-**CreateMatch over Kafka — half done:**
-- DONE (idle): match-manager `Events/MatchCommandConsumer.cs` consumes `match.commands.v1`
-  `CreateMatchCommand` and creates the match with the caller-minted id
-  (`DatabaseService.Insert` already honors a supplied non-empty id). Registered in `Program.cs`.
-- TODO: match-maker still calls gRPC `Matches.CreateMatch` (`Queue/MatchingService.cs`,
-  `Queue/QueueingService.cs`, 3 sites). It must mint the matchId and publish `CreateMatchCommand` via a
-  new `IMatchCommandPublisher`, and its Reqnroll feature tests reworked from "gRPC CreateMatch" to
-  "CreateMatchCommand published". **bot-vs-bot stays gRPC** (synchronous start_fen validation).
+**CreateMatch over Kafka — DONE.**
+- match-manager `Events/MatchCommandConsumer.cs` consumes `match.commands.v1` `CreateMatchCommand`
+  and creates the match with the caller-minted id (`DatabaseService.Insert` already honors a supplied
+  non-empty id). Registered in `Program.cs`.
+- match-maker now routes the two non-validated create sites through the `Queue/IMatchCreator` seam,
+  selected by `Socket:Transport` (mirrors `IMatchmakingNotifier`): `KafkaMatchCreator` mints the
+  matchId and publishes `CreateMatchCommand` to `match.commands.v1` (fire-and-forget, returns the
+  minted id immediately); `GrpcMatchCreator` keeps the legacy synchronous `Matches.CreateMatch` for
+  the `grpc` transport / Kafka-off (prod). Touched: `Queue/MatchingService.cs` (human-vs-human),
+  `Queue/QueueingService.cs` `EnqueueAsync` bot branch (human-vs-bot). Reqnroll tests reworked to the
+  seam; `GrpcMatchCreatorTests` covers request shape + time-format resolution. 100% line/branch/method.
+- **bot-vs-bot stays gRPC** (`QueueingService.CreateBotVsBotMatchAsync`) — it needs synchronous
+  `start_fen` validation to return `invalid start_fen` to the caller, which a fire-and-forget command
+  can't do.
+- **Consequence (accepted, per the ADR's 202 + socket model):** a freshly-minted human-vs-bot match id
+  is returned to the client before Match Manager's consumer materialises the document, so an immediate
+  `GET /matches/{id}` can briefly 404 until the consumer catches up.
+- **Deploy gating:** live only where match-maker `Socket:Transport=kafka` **and** the match-manager
+  consumer is running (staging). Prod has Kafka off → match-maker must stay on `Socket__Transport: grpc`.
+  Verify `maichess-deploy` values before flipping.
 
 **The move loop itself — not started.** Today `MatchService.MakeMoveAsync` / `ProcessBotMoveAsync`
 validate via gRPC `MovesClient.ValidateMove`, request bot moves via gRPC `BotsClient.GetBestMove`, write

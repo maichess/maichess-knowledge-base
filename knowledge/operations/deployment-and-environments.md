@@ -1,9 +1,9 @@
 # Deployment & Environments
 
 **Status:** Reference / runbook
-**Relates to:** [event-driven-architecture.md](event-driven-architecture.md),
-[change-data-capture.md](change-data-capture.md),
-[caching-and-read-models.md](caching-and-read-models.md)
+**Relates to:** [event-driven-architecture.md](../architecture/event-driven-architecture.md),
+[change-data-capture.md](../architecture/change-data-capture.md),
+[caching-and-read-models.md](../architecture/caching-and-read-models.md)
 
 ## Context
 

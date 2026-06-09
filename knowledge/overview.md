@@ -17,7 +17,7 @@ Initially, a monolithic native app was built using scala to get a feel for the d
 
 ## ... to microservices in the web.
 
-The ultimate goal however is a microservice-based web-app that can scale to potentially millions of users. The proposed microservice structure is outlined further in [maichess-structure](maichess-structure.md).
+The ultimate goal however is a microservice-based web-app that can scale to potentially millions of users. The proposed microservice structure is outlined further in [maichess-structure](structure.md).
 
 When users visit the app for the first time they will be prompted to create an account or log in via typical OAuth providers like Google or GitHub. 
 

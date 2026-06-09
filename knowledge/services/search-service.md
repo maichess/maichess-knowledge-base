@@ -1,8 +1,8 @@
 # Search (Elasticsearch)
 
-**Status:** Accepted — implementation in `feature-prompts/13`
-**Relates to:** [change-data-capture.md](change-data-capture.md),
-[caching-and-read-models.md](caching-and-read-models.md),
+**Status:** Accepted — implementation in `tasks/13`
+**Relates to:** [change-data-capture.md](../architecture/change-data-capture.md),
+[caching-and-read-models.md](../architecture/caching-and-read-models.md),
 [analysis-service.md](analysis-service.md)
 
 ## Context
@@ -61,7 +61,7 @@ The REST contract is specified in `maichess-api-contracts/rest/search.md` before
 
 - New Helm components: an **Elasticsearch** StatefulSet (single node in staging, 3-node in prod)
   + the `maichess-search-service` Deployment.
-- The Mongo Debezium connector from [change-data-capture.md](change-data-capture.md) is the feed;
+- The Mongo Debezium connector from [change-data-capture.md](../architecture/change-data-capture.md) is the feed;
   add a one-shot **reindex job** that backfills ES from the current collections on first rollout
   and on demand.
 - Index templates / mappings ship as part of the service's startup or an init job, versioned in
@@ -70,10 +70,10 @@ The REST contract is specified in `maichess-api-contracts/rest/search.md` before
 ## Non-goals
 
 - Leaderboards are **not** ES — they are Redis sorted sets
-  (see [caching-and-read-models.md](caching-and-read-models.md)). Do not reach for ES for ranked
+  (see [caching-and-read-models.md](../architecture/caching-and-read-models.md)). Do not reach for ES for ranked
   numeric lookups.
 
-## Implementation notes (feature-prompts/13 — shipped)
+## Implementation notes (tasks/13 — shipped)
 
 `maichess-search-service` (ASP.NET, repo created per the prompt) implements the full scope.
 
@@ -91,7 +91,7 @@ The REST contract is specified in `maichess-api-contracts/rest/search.md` before
   (`PlacementKey`), stored as an ES `keyword` so a position lookup is one exact-term query.
 - **Auth scoping.** Games scope by `user_id`; matches/positions by an `owner_ids` array
   (white/black/created_by, canonicalised to lowercase-Guid form to match the JWT `sub` —
-  same canonicalisation as the Past Matches fix in feature-prompts/08). match-db stores
+  same canonicalisation as the Past Matches fix in tasks/08). match-db stores
   only player ids, so match `white`/`black` are best-effort id labels; clients hydrate
   names from match-manager.
 - **Reindex.** `ReindexService` (`--reindex`, Helm hook Job `searchService.reindex`) reads

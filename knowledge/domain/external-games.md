@@ -1,5 +1,11 @@
 # External Games
 
+**Status:** Built for the **tournament-server** provider (`maichess-tournament-bridge-service`).
+**Lichess support is not yet implemented** — the original combined prompt was aborted and the
+Lichess half is carried as a planned task ([16-lichess-bridge-compatibility](../../tasks/planned/16-lichess-bridge-compatibility.md)).
+The engine-drives/we-mirror model below is provider-agnostic by design, so adding Lichess is an
+additive provider behind the existing bridge.
+
 ## Decision
 
 External games use the **engine-drives, we-mirror** model. A **tournament bridge

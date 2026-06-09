@@ -1,7 +1,7 @@
 # Event-Driven Architecture (Kafka)
 
 **Status:** Accepted — implementation in progress
-**Supersedes:** the point-to-point gRPC call graph in [grpc-overview.md](../maichess-api-contracts/grpc-overview.md) for all *command* and *fact* flows.
+**Supersedes:** the point-to-point gRPC call graph in [grpc-overview.md](../../../maichess-api-contracts/grpc-overview.md) for all *command* and *fact* flows.
 
 ## Context
 
@@ -146,7 +146,7 @@ renders as a Kafka hub — making the decoupling visible.
 
 ## Rollout (strangler)
 
-> **Live progress / handoff:** see [event-driven-migration-status.md](event-driven-migration-status.md)
+> **Live progress / handoff:** see [event-driven-migration-status.md](../../tasks/kafka-migration-status.md)
 > for what's done vs. remaining and where to pick up. As of 2026-06-09: phases 0–2 done, phase 3+ open.
 
 0. Foundations: this ADR, Avro schemas, Helm (Kafka + registry + topic init), per-language helper.

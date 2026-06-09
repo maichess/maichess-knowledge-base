@@ -1,6 +1,6 @@
 # Change Data Capture & the Outbox Boundary
 
-**Status:** Accepted — implementation in `feature-prompts/10`
+**Status:** Accepted — implementation in `tasks/10`
 **Relates to:** [event-driven-architecture.md](event-driven-architecture.md),
 [caching-and-read-models.md](caching-and-read-models.md)
 
@@ -29,7 +29,7 @@ store.**
   fed from `user.cdc.v1`). The write becomes atomic by construction — the WAL *is* the commit.
 - **match-db (Mongo):** a Debezium Mongo connector tails the oplog for the collections that need
   to feed derived read models (search indexes, see
-  [search-elasticsearch.md](search-elasticsearch.md)) without their owning service dual-writing.
+  [search-elasticsearch.md](../services/search-service.md)) without their owning service dual-writing.
 - **match aggregate:** unchanged. It stays event-sourced at the app layer. Putting Debezium on
   `match.*` would double-source events we already produce — explicitly forbidden.
 
@@ -66,7 +66,7 @@ directly. This keeps the published event contract stable while CDC handles deliv
 - Connector offsets/status topics are internal Connect topics — provision them in the topic-init
   job alongside the existing event topics.
 
-## Implementation notes (feature-prompts/10 — user CDC shipped)
+## Implementation notes (tasks/10 — user CDC shipped)
 
 The Postgres → `user.cdc.v1` → `user.events.v1` path is implemented:
 
@@ -88,7 +88,7 @@ The Postgres → `user.cdc.v1` → `user.events.v1` path is implemented:
   impossible. The mapper degrades safely (emits both profile + rating events) if a before-image
   is missing.
 - **Contract gap deferred to Stage 3.** The frozen `user.events` payloads carry no
-  `wins/losses/draws`, which the Stage-3 Redis replica needs. Closing that is `feature-prompts/11`'s
+  `wins/losses/draws`, which the Stage-3 Redis replica needs. Closing that is `tasks/11`'s
   job via the publish/bump handoff — not changed here, to keep the topic contract stable.
 
 ## Migration order
@@ -97,4 +97,4 @@ The Postgres → `user.cdc.v1` → `user.events.v1` path is implemented:
 2. Feed `user.events.v1` from `user.cdc.v1`; run side by side with the existing producer and
    reconcile.
 3. Remove the User service's event-emit dual write; Postgres is now the only synchronous write.
-4. Add the Mongo connector when the search indexer (`feature-prompts/13`) needs it.
+4. Add the Mongo connector when the search indexer (`tasks/13`) needs it.

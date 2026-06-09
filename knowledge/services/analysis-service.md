@@ -92,7 +92,7 @@ On startup: read `stored_bot_id`. If it differs from `DefaultAnalysisBotId` in c
 
 ## REST API
 
-See [`rest/analysis.md`](../maichess-api-contracts/rest/analysis.md).
+See [`rest/analysis.md`](../../../maichess-api-contracts/rest/analysis.md).
 
 ### Games endpoints
 

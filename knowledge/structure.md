@@ -81,7 +81,7 @@ from cache or the engine.
 The client receives analysis events on the same socket.io connection used for match events; no
 separate WebSocket connection is needed.
 
-See [analysis-service.md](analysis-service.md) for the full data model, protocol, and dependency map.
+See [analysis-service.md](services/analysis-service.md) for the full data model, protocol, and dependency map.
 
 ### Socket Service
 

@@ -1,6 +1,6 @@
 # Caching & Read Models (CQRS)
 
-**Status:** Accepted — implementation staged (see `feature-prompts/09`–`13`)
+**Status:** Accepted — implementation staged (see `tasks/09`–`13`)
 **Builds on:** [event-driven-architecture.md](event-driven-architecture.md) (Kafka, the
 Redis live-match read model, the 202 + socket flow). This ADR generalises the read/write
 split that the match domain already uses to the rest of the platform.
@@ -38,7 +38,7 @@ service's cache by reaching across a boundary — it consumes the fact and updat
 | `analysis_results` hot positions | Redis L1 over Mongo L2 | append-only | cache-aside, keyed `(fen, bot_id)` |
 | Leaderboards / rating ranges | Redis **sorted set** (`ZSET`) | mutable | rating event consumer |
 | Arena standings | Redis | recomputed | tournament event consumer |
-| Games / match / position **search** | Elasticsearch | derived | see [search-elasticsearch.md](search-elasticsearch.md) |
+| Games / match / position **search** | Elasticsearch | derived | see [search-elasticsearch.md](../services/search-service.md) |
 
 ### Redis vs KTable — the deliberate split
 
@@ -64,14 +64,14 @@ Examples of the one rule:
   participant/initiator's `ListUserMatches` pages.
 - rating event on `user.events` → refresh `user:{id}`, update the leaderboard `ZSET`.
 - `cheat.events` → update the user replica's `flagged` field (see
-  [anticheat-service.md](anticheat-service.md)).
+  [anticheat-service.md](../services/anticheat-service.md)).
 
 No TTL-based "eventually correct" caches for mutable data; correctness comes from the event, not
 from expiry.
 
-### Stage 1 implementation notes (finished-match read model — `feature-prompts/09`)
+### Stage 1 implementation notes (finished-match read model — `tasks/09`)
 
-Implemented in match-manager (`feature-prompts/09`). Concrete choices made:
+Implemented in match-manager (`tasks/09`). Concrete choices made:
 
 - **Service seam, not a new layer.** Caching lives behind an `IMatchCache` adapter
   (`Data/IMatchCache.cs`, Redis impl `Data/RedisMatchCache.cs`) injected into `MatchService`,
@@ -91,10 +91,10 @@ Implemented in match-manager (`feature-prompts/09`). Concrete choices made:
 - **Per-user SCAN for eviction**, not a tracked index set: under `allkeys-lru` an index could be
   evicted independently of the page keys it references, leaking stale entries. The `matches:user:{id}:*`
   pattern keeps the scanned keyspace small.
-- **Canonical ids** (from `feature-prompts/08`) are used for every cache key and eviction, so the
+- **Canonical ids** (from `tasks/08`) are used for every cache key and eviction, so the
   cache and the DB filter agree.
 
-### Stage 3 implementation notes (user read models — `feature-prompts/11`)
+### Stage 3 implementation notes (user read models — `tasks/11`)
 
 Both materialisations of the compacted `user.events.v1` are now in the codebase, on purpose:
 
@@ -127,7 +127,7 @@ Both materialisations of the compacted `user.events.v1` are now in the codebase,
 
 - **Contract.** `user.events.v1`'s `RatingUpdated` payload gained `wins/losses/draws`
   (defaults, backward-compatible) so the replica can carry stats; the User-service CDC
-  mapper (`feature-prompts/10`) populates them. No `PlatformProtos` bump (Avro schema, not
+  mapper (`tasks/10`) populates them. No `PlatformProtos` bump (Avro schema, not
   gRPC).
 
 ## Deployment
@@ -135,7 +135,7 @@ Both materialisations of the compacted `user.events.v1` are now in the codebase,
 - Redis already ships in Helm; new caches reuse it (note future sharding if `ZSET`/replica load
   grows — out of scope here).
 - The Match Maker KTable needs a Streamiz state directory (RocksDB) on the pod; size and
-  changelog topic are documented in `feature-prompts/11`.
+  changelog topic are documented in `tasks/11`.
 - No cache is a system of record. Every read model is rebuildable from its topic (replay) or its
   master store; document the rebuild path with each projection.
 
@@ -143,4 +143,4 @@ Both materialisations of the compacted `user.events.v1` are now in the codebase,
 
 - This ADR does not introduce CDC; that boundary lives in
   [change-data-capture.md](change-data-capture.md).
-- Elasticsearch scope lives in [search-elasticsearch.md](search-elasticsearch.md).
+- Elasticsearch scope lives in [search-elasticsearch.md](../services/search-service.md).

@@ -1,9 +1,9 @@
 # Anti-Cheat Service
 
-**Status:** Accepted — implementation in `feature-prompts/14` (two iterations)
-**Relates to:** [event-driven-architecture.md](event-driven-architecture.md),
-[caching-and-read-models.md](caching-and-read-models.md),
-[match-history-and-stats.md](match-history-and-stats.md)
+**Status:** Accepted — implementation in `tasks/14` (two iterations)
+**Relates to:** [event-driven-architecture.md](../architecture/event-driven-architecture.md),
+[caching-and-read-models.md](../architecture/caching-and-read-models.md),
+[match-history-and-stats.md](../domain/match-history-and-stats.md)
 
 ## Context
 
@@ -55,7 +55,7 @@ threshold, and propagates the flag via events so matchmaking and the user read m
 - A flag change emits to **`cheat.events.v1`** (keyed by userId). The user read models
   (Redis replica + the Match Maker KTable) consume it and set a `flagged` field — so matchmaking
   filters flagged players with **no extra RPC**, consistent with
-  [caching-and-read-models.md](caching-and-read-models.md).
+  [caching-and-read-models.md](../architecture/caching-and-read-models.md).
 - The boolean flag is the only thing that propagates; the evidence stays in `anticheat-db`.
 
 ### Matchmaking toggle

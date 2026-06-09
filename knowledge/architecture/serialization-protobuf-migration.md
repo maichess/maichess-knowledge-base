@@ -1,6 +1,6 @@
 # Serialization: Avro → Protobuf on Kafka
 
-**Status:** Accepted — implementation in `feature-prompts/15`
+**Status:** Accepted — implementation in `tasks/15`
 **Supersedes (eventually):** the Avro/Schema-Registry serialization section of
 [event-driven-architecture.md](event-driven-architecture.md).
 
@@ -59,6 +59,17 @@ right up until the last topic is converted.
 Generated Protobuf packages publish from `maichess-api-contracts` on a `v*` tag exactly like the
 existing `Maichess.PlatformProtos` flow; consumers bump the pinned version per the standard
 handoff.
+
+### Known serde touch-points (kept localised on purpose)
+
+Each topic's Avro serde is confined to a single class per service, so the per-topic switch (add
+proto schema → consumers read both → producer switches → retire Avro) is a small, contained change:
+
+- `match.commands.v1`: producer = match-maker `Queue/KafkaMatchCreator.cs` (the only producer; behind
+  the `IMatchCreator` seam, so service logic is untouched by the swap); consumer = match-manager
+  `Events/MatchCommandConsumer.cs` (the class that must learn to read both formats first).
+- `socket.outbound.v1` / `matchmaking.events.v1`: match-maker `Queue/KafkaMatchmakingNotifier.cs`
+  (producer) and socket-service `src/kafka/consumer.ts` (consumer).
 
 ## Deployment
 
