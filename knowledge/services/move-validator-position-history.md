@@ -38,6 +38,23 @@ It treats the list as an opaque blob whose meaning is entirely defined by the mo
 | Invalid move | Keep existing stored list unchanged |
 | Game ends (`game_result` ≠ `UNSPECIFIED` / `NONE`) | Discard the list — it is not needed after the game concludes |
 
+## Stream-processor path (Kafka)
+
+Since the [event-driven migration](../architecture/event-driven-architecture.md) (Kafka task `03`)
+the move validator runs the *same* ownership contract as a **stream processor** in addition to its
+gRPC query RPCs. It consumes `MoveSubmitted{fen, move_uci, position_history}` from
+`match.events.v1`, runs the identical pure logic, and produces `MoveValidated{resulting_fen,
+game_result, position_history}` (or `MoveRejected`) back to the same topic.
+
+The position-history blob rides the events exactly as it rode the gRPC request/response: it is
+**carried in on `MoveSubmitted`** and **returned updated on `MoveValidated`**. Match Manager
+relays it on the events and stores it in the read model but still never inspects it — the validator
+remains the sole authority. The only thing that changes is the transport (Kafka events vs.
+request/response); the reset-on-irreversible-move and threefold rules above are unchanged, which is
+why the move-loop events were authored to mirror the RPC fields one-for-one. Because the validator
+is pure, reprocessing the same `MoveSubmitted` yields the same `position_history`, so at-least-once
+redelivery is safe.
+
 ## Why not PGN / why not a callback
 
 Passing full PGN grows quadratically in total bytes over the game and leaks move-notation
