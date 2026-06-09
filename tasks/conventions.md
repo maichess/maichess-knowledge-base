@@ -29,7 +29,7 @@ This file defines the **shared rules every task spec assumes** — read it befor
 - [anticheat-service.md](../knowledge/services/anticheat-service.md) — detection, storage,
   flag propagation, matchmaking toggle. (`14`)
 - [serialization-protobuf-migration.md](../knowledge/architecture/serialization-protobuf-migration.md)
-  — Avro→Protobuf dual-serde + registry removal. (`15`)
+  — Protobuf-first serialization + registry removal. (Kafka program, `planned/kafka/`)
 
 ### New repos / services / infrastructure to pre-create
 
@@ -103,6 +103,12 @@ These come from the root `CLAUDE.md`, the per-repo `CLAUDE.md` files, and the
    direct Mongo/SQL driver.** Provision a dedicated database-service instance for the
    new domain rather than reaching into another service's store. (Match-manager's
    direct `MongoDB.Driver` usage is legacy; do not copy it for new services.)
+7. **Finish the job — no dangling references.** Do things all the way. When you
+   move, rename, or delete a file, doc, symbol, contract, or config key, **fix every
+   reference to it immediately, across every repo** (knowledge base, contracts,
+   services, client, deploy) — not just the one you were editing. Leaving a broken
+   link, stale path, or dead pointer is not "done." Before considering a structural
+   change complete, grep the whole workspace for the old name and resolve every hit.
 
 ## Client conventions (prompts 01, 02, 05, 06)
 

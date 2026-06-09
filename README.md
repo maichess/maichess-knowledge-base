@@ -37,8 +37,9 @@ should conform to them, not the other way around.
   conventions).
 - **[implemented/](tasks/implemented/)** — specs whose work has shipped (historical record).
 - **[planned/](tasks/planned/)** — specs not yet started (or only partly built).
-- **[kafka-migration-status.md](tasks/kafka-migration-status.md)** — live progress tracker for the
-  multi-phase event-driven (Kafka) migration, which is too large for a single spec.
+- **[planned/kafka/](tasks/planned/kafka/README.md)** — the multi-task **Kafka migration program**
+  (Protobuf-first): current state, the ordered task list, and the path to the target event-sourced
+  platform. Too large for a single spec, so it's its own ordered set.
 
 ## How these relate
 

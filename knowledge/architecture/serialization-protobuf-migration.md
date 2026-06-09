@@ -1,24 +1,30 @@
 # Serialization: Avro → Protobuf on Kafka
 
-**Status:** Accepted — implementation in `tasks/15`
+**Status:** Accepted — implemented as part of the [Kafka task program](../../tasks/planned/kafka/README.md)
 **Supersedes (eventually):** the Avro/Schema-Registry serialization section of
 [event-driven-architecture.md](event-driven-architecture.md).
 
 ## Context
 
-The Kafka event flows currently use **Avro + Confluent Schema Registry** (BACKWARD compat). The
+The first Kafka topics shipped on **Avro + Confluent Schema Registry** (BACKWARD compat). The
 project's historical and intended contract format is **Protobuf** (the surviving query RPCs and
 all of `maichess-api-contracts/protos/` are already proto). We want one IDL — Protobuf — across
 both the synchronous RPCs and the Kafka events.
 
 ## Decision
 
-Migrate all Kafka event schemas from Avro to Protobuf, **incrementally and reversibly**, then
-**remove the Schema Registry entirely** at the end.
+**Protobuf-first.** All event serialization is Protobuf; the Schema Registry is **removed at the
+end** in favor of raw Protobuf bytes. Concretely:
 
-### Strategy: incremental dual-serde, per topic
+- **New event types are authored in Protobuf from the start** — never written in Avro and
+  re-encoded. (The move loop, analysis, rating, and cheat events are all born in proto.)
+- **The handful of topics that shipped first on Avro** (`socket.outbound`, `matchmaking.events`,
+  `match.commands`) are re-encoded to Protobuf per-topic, dual-read → switch → retire.
+- The registry stays (mediating Protobuf) until every topic is proto-only, then it is removed.
 
-For each topic, in the existing strangler order
+### Strategy for the already-Avro topics: incremental dual-serde, per topic
+
+In the existing rollout order
 (socket.outbound → matchmaking → match loop → analysis → user/rating → cheat):
 
 1. **Add** the Protobuf schema for the topic's events in `maichess-api-contracts` (under

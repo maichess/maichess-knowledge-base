@@ -1,6 +1,6 @@
 # Event-Driven Architecture (Kafka)
 
-**Status:** Accepted — implementation in progress
+**Status:** Accepted — implementation in progress (tracked in the [Kafka task program](../../tasks/planned/kafka/README.md))
 **Supersedes:** the point-to-point gRPC call graph in [grpc-overview.md](../../../maichess-api-contracts/grpc-overview.md) for all *command* and *fact* flows.
 
 ## Context
@@ -63,12 +63,15 @@ Partitions: 12 for `match.*`, 3 for the rest. Single broker in staging, 3 (RF=3)
 
 ## Serialization
 
-**Avro** with a **Confluent Schema Registry** (`BACKWARD` compatibility). Schemas live in
-`api-contracts` (see [CONTRACT_NOTES](../maichess-api-contracts) and the event schema set).
-Avro is used because it has the best-supported Confluent serdes across C#, Scala, and Node, and
-the event flows no longer need proto (proto is retained only for the surviving query RPCs).
+**Protobuf**, generated from `maichess-api-contracts/protos/events/v1/` and shipped in
+`Maichess.PlatformProtos` (one IDL for both the events and the surviving query RPCs). During the
+migration a Confluent **Schema Registry** mediates the encoding (`BACKWARD` compatibility) and is
+removed at the end in favor of raw Protobuf bytes — see
+[serialization-protobuf-migration.md](serialization-protobuf-migration.md) and the
+[Kafka task program](../../tasks/planned/kafka/README.md). (The three topics that shipped first were
+authored in Avro and are being re-encoded to Protobuf; no new event type uses Avro.)
 
-Every message carries a common envelope:
+Every message carries a common envelope (a proto message with a `oneof payload`):
 
 | Field | Type | Purpose |
 |---|---|---|
@@ -80,7 +83,7 @@ Every message carries a common envelope:
 | `correlation_id` | string | one logical flow |
 | `causation_id` | string | the event_id that caused this one |
 | `producer` | string | emitting service |
-| `payload` | union | the typed event body |
+| `payload` | oneof | the typed event body |
 
 ## Match flow (event-sourced)
 
@@ -144,16 +147,11 @@ The topology graph is built from OTel `servicegraph` spans. Kafka client instrum
 stay enabled so `messaging.*` produce/consume spans (with span links) flow; the mesh then
 renders as a Kafka hub — making the decoupling visible.
 
-## Rollout (strangler)
+## Rollout
 
-> **Live progress / handoff:** see [event-driven-migration-status.md](../../tasks/kafka-migration-status.md)
-> for what's done vs. remaining and where to pick up. As of 2026-06-09: phases 0–2 done, phase 3+ open.
-
-0. Foundations: this ADR, Avro schemas, Helm (Kafka + registry + topic init), per-language helper.
-1. `socket.outbound` (socket service consumes; producers dual-write then cut over).
-2. Matchmaking.
-3. Match move loop (the core: projector, validator/engine stream processors, Redis read model, timer).
-4. Analysis (in maichess-mono until analysis-service is extracted).
-5. User/rating events; decommission RecordMatchResult gRPC.
-6. Decommission dead gRPC: EmitEvent, BroadcastMatchEvent, internal MakeMove, CreateMatch client,
-   Engine.GetBestMove. Keep all query RPCs + DB CRUD + ValidateToken.
+The migration is delivered as an ordered set of self-contained tasks — see the
+**[Kafka task program](../../tasks/planned/kafka/README.md)** for the current state (what already
+runs on Kafka), the task list, dependencies, and the Protobuf-first decision. Socket fan-out,
+matchmaking facts, and `CreateMatch`-over-Kafka are live today; the move loop, Redis live read model,
+202 contract, analysis, rating events, and the gRPC/registry decommission are the remaining tasks
+there.
