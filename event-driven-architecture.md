@@ -146,6 +146,9 @@ renders as a Kafka hub — making the decoupling visible.
 
 ## Rollout (strangler)
 
+> **Live progress / handoff:** see [event-driven-migration-status.md](event-driven-migration-status.md)
+> for what's done vs. remaining and where to pick up. As of 2026-06-09: phases 0–2 done, phase 3+ open.
+
 0. Foundations: this ADR, Avro schemas, Helm (Kafka + registry + topic init), per-language helper.
 1. `socket.outbound` (socket service consumes; producers dual-write then cut over).
 2. Matchmaking.
