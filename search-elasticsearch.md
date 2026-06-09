@@ -72,3 +72,37 @@ The REST contract is specified in `maichess-api-contracts/rest/search.md` before
 - Leaderboards are **not** ES — they are Redis sorted sets
   (see [caching-and-read-models.md](caching-and-read-models.md)). Do not reach for ES for ranked
   numeric lookups.
+
+## Implementation notes (feature-prompts/13 — shipped)
+
+`maichess-search-service` (ASP.NET, repo created per the prompt) implements the full scope.
+
+- **Indexer.** A gated `BackgroundService` (`Kafka/CdcIndexer.cs`, excluded) consumes
+  `match.cdc.v1` and delegates to a pure, fully-tested transform `CdcDocumentMapper`
+  (Debezium Mongo change → `IndexCommand`s) applied via `SearchIndexWriter`. The single
+  Mongo connector folds `matches` + `analysis_games` onto `match.cdc.v1` (RegexRouter);
+  the projection branches on `source.collection`. The connector runs with
+  `capture.mode=change_streams_update_full` so updates carry the full post-image; deletes
+  resolve the id from the change `before` image or the message key.
+- **Three indexes.** `analysis_games` and `matches` (summary + facet fields) and
+  `positions` (one doc per ply). Position doc id is deterministic
+  `{kind}:{parent_id}:{ply}` → CDC replay and reindex are idempotent (upsert, never
+  duplicate). `placement_key` = FEN piece-placement + side-to-move, move counters dropped
+  (`PlacementKey`), stored as an ES `keyword` so a position lookup is one exact-term query.
+- **Auth scoping.** Games scope by `user_id`; matches/positions by an `owner_ids` array
+  (white/black/created_by, canonicalised to lowercase-Guid form to match the JWT `sub` —
+  same canonicalisation as the Past Matches fix in feature-prompts/08). match-db stores
+  only player ids, so match `white`/`black` are best-effort id labels; clients hydrate
+  names from match-manager.
+- **Reindex.** `ReindexService` (`--reindex`, Helm hook Job `searchService.reindex`) reads
+  Mongo via DatabaseService and reuses the *same* projection (`ProjectGame`/`ProjectMatch`)
+  — the documented rebuild path proving ES is derived, not authoritative.
+- **ES access.** Direct, behind the `ISearchIndex` seam, over the ES **REST API with
+  HttpClient** rather than the typed client — keeps wire shapes under our control and the
+  swap to the typed client a single-file change. Recorded in the service `CONTRACT_NOTES.md`.
+- **No contract bump.** The only new contract is `rest/search.md` (Markdown, not the
+  PlatformProtos package) — no tag/publish handoff. Service pins PlatformProtos 0.4.0.
+- **Deployment.** Helm: `elasticsearch.yaml` (StatefulSet), `search-service.yaml`
+  (Deployment + Service + reindex Job, `Cdc__Enabled` gated on `kafkaConnect.enabled`),
+  and the Mongo Debezium connector in `kafka-connect.yaml`. Tests: 100% line/branch/method
+  on non-excluded code; Stryker wired mirroring the exclusions.
