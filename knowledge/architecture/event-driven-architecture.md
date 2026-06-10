@@ -120,6 +120,15 @@ Redis holds the live per-match projection (current FEN, clocks, turn, position_h
 rebuilt from `match.events` on startup. REST reads hit Redis; durable history is materialized
 into match-db via DatabaseService. This is the CQRS read/write split.
 
+Implemented in match-manager (`tasks/kafka/05`): the projector
+(`Events/MatchEventProjectorConsumer.cs`) maintains the projection at `match:live:{id}` behind the
+`Data/ILiveMatchState` seam; the pure decision logic is `Kafka/MatchProjector.cs` and the live/durable
+folds are `Kafka/MatchProjection.cs` / `Kafka/MatchHistoryProjection.cs`. `GET /matches/{id}` overlays
+the live fields onto the durable doc for ongoing matches and falls back to match-db when the model is
+cold (non-breaking before the write entrypoint is cut over in `06`). Because `MoveValidated` carries
+no move, the projector stashes the pending UCI from `MoveSubmitted` in the live state. See
+[caching-and-read-models.md](caching-and-read-models.md) for the full notes.
+
 ## Client contract change
 
 `POST /matches/{id}/moves` and `/resign` return **202 Accepted**; the authoritative result

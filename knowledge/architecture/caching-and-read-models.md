@@ -31,7 +31,7 @@ service's cache by reaching across a boundary — it consumes the fact and updat
 
 | Read model | Tier | Mutability | Maintained by |
 |---|---|---|---|
-| Live match state | Redis | mutable | `match.events` projector (existing) |
+| Live match state | Redis | mutable | `match.events.v1` projector in match-manager (`tasks/kafka/05`) |
 | Finished match doc + `ListUserMatches` pages | Redis | **immutable** | `MatchEnded` consumer; infinite TTL, evict on LRU only |
 | User profile/rating/stats replica | Redis (default) | mutable | compacted `user.events.v1` consumer |
 | User rating enrichment in **Match Maker** | Streamiz KTable | mutable | co-partitioned `user.events` ⋈ matchmaking join |
@@ -129,6 +129,40 @@ Both materialisations of the compacted `user.events.v1` are now in the codebase,
   (defaults, backward-compatible) so the replica can carry stats; the User-service CDC
   mapper (`tasks/10`) populates them. No `PlatformProtos` bump (Avro schema, not
   gRPC).
+
+### Live match read model (the CQRS read side for ongoing matches — `tasks/kafka/05`)
+
+Previously "not implemented"; now the live half of the move loop. The projector
+(`Events/MatchEventProjectorConsumer.cs`, `[ExcludeFromCodeCoverage]`) consumes
+`match.events.v1` (group `match-manager-projector`) and maintains a per-match projection in
+Redis at `match:live:{id}` (a JSON blob: current fen, white/black clocks, turn, move index,
+the opaque `position_history`, the players, and the last-applied sequence) behind the
+`Data/ILiveMatchState` seam (Redis impl `Data/RedisLiveMatchState.cs`). Concrete choices:
+
+- **Pure decision core, I/O shell.** All logic is in the fully-tested, mutation-checked
+  `Kafka/MatchProjector.cs` (events to emit + new state) and the folds `Kafka/MatchProjection.cs`
+  (live state) / `Kafka/MatchHistoryProjection.cs` (durable doc); the consumer only moves bytes,
+  mirroring `UserReplicaConsumer`. The move-loop clock math (decrement / increment-on-non-terminal /
+  flag) is duplicated from `MatchService` deliberately — the synchronous path is retired when the
+  write entrypoint cuts over (`tasks/kafka/06`).
+- **The loop as events.** `MoveValidated → MoveApplied (+ socket move_made)`; a terminal
+  `game_result` or a flagged clock `→ MatchEnded (+ match_ended)`; else a bot to move
+  `→ BotMoveRequested{request_id}`. `BotMoveCalculated → MoveSubmitted` re-enters the validator
+  loop; `MatchCreated` kicks the first bot move. Because `MoveValidated` does not carry the move,
+  the projector stashes the pending UCI from `MoveSubmitted` in the live state.
+- **Effectively-once.** The consume→produce (both `match.events.v1` re-emits and `socket.outbound.v1`
+  pushes) runs in one Kafka transaction with the consumer offset, the same pattern as the Scala
+  move-validator. Idempotency also dedupes on `(aggregate_id, sequence)`. The Redis projection and
+  the match-db write-through are rebuildable side-effects applied after commit (replay the log /
+  reset the group), never a system of record.
+- **Durable write-through.** On `MatchCreated`/`MoveApplied`/`MatchEnded` the projector materialises
+  full history into match-db via `IMatchRepository` (the `MatchHistoryProjection` fold), and on
+  `MatchEnded` refreshes the finished-match doc cache + evicts participant pages — the same
+  invalidation the synchronous `OnMatchEndedAsync` does.
+- **REST live reads.** `GET /matches/{id}` overlays the live fields (fen/clocks/last-move time/status)
+  onto the durable doc for an ongoing match (`MatchService.GetMatchForReadAsync`), falling back to the
+  match-db doc when the model is cold (so it is non-breaking before the write side is cut over).
+  Finished matches keep the immutable cache / match-db path.
 
 ## Deployment
 
