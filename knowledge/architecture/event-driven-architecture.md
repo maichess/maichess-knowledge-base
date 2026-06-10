@@ -135,6 +135,15 @@ no move, the projector stashes the pending UCI from `MoveSubmitted` in the live 
 arrives over the existing socket.io connection (`move_made` / `match_ended`). The client moves
 to optimistic UI + socket confirmation. This is a deliberate REST contract change recorded here.
 
+**Status: live (Kafka task `06`).** The match command side now validates moves/resign/draws
+against the Redis read model and emits `MoveSubmitted` / `MatchEnded` / `DrawOffered` /
+`DrawDeclined` to `match.events.v1`, returning 202; match creation emits `MatchCreated`, which
+seeds the read model and the durable document. The synchronous in-process move path (validate /
+bot-move / direct broadcast / `RecordMatchResult`) is retired; draw offer/accept/decline also
+return 202. The internal `Matches.MakeMove` / `Matches.ResignMatch` gRPC RPCs are dead (removed
+from the proto in task `09`). Rating updates on match end are re-homed onto `user.events` in
+task `08`.
+
 ## Hard problems and resolutions
 
 - **Read-after-write:** resolved by the 202 + socket model above.
