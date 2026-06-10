@@ -178,6 +178,37 @@ not stored in `AnalysisGame` documents. Whatif moves are validated with an empty
 the whatif branch itself, not positions from the preceding game moves. This is a known
 limitation acceptable for analysis use.
 
+## Analysis over Kafka (control/stream model)
+
+Where orchestration lives: **the standalone analysis-service** (this service). It already owns the
+session lifecycle, cache, and socket fan-out, so analysis stays here rather than moving to
+maichess-mono or being split out further — the Kafka work only swaps the engine transport.
+
+The synchronous `Engine.AnalyzePosition` gRPC stream is replaced (opt-in via `KAFKA_ENABLED`,
+staging only; prod keeps gRPC) by a command/event pair on Kafka, per the
+[event-driven-architecture](../architecture/event-driven-architecture.md) analysis note and Kafka
+task `07`:
+
+- **Commands → `analysis.commands.v1`** (keyed by `sessionId`): the service publishes
+  `StartAnalysis{sessionId, fen, botId, lineCount}` when analysis starts/restarts and
+  `StopAnalysis{sessionId}` on cancel. Cache replay (emit cached depths, compute `maxCachedDepth`)
+  still happens on this command side before `StartAnalysis` is published.
+- **Engine** consumes the commands, runs the iterative-deepening search, and streams
+  `AnalysisDepthCompleted{sessionId, fen, botId, depth, lines}` per depth to **`analysis.events.v1`**,
+  then `AnalysisCompleted{finalDepth}` on a natural end or `AnalysisFailed{message}` on error.
+  A `StopAnalysis` (or a superseding `StartAnalysis`) cancels the run keyed by `sessionId`; the
+  engine cancels **silently** (no terminal event), as it loses the native gRPC stream backpressure
+  (accepted trade).
+- **Events → socket:** the service consumes `analysis.events.v1` and forwards depth updates to the
+  client over the same `Socket.EmitEvent` channel (`analysis_update` / `analysis_complete` /
+  `analysis_error`). It resolves the live in-memory session by id to recover the user, drops events
+  whose `fen` no longer matches the session's analyzed position (navigate/whatif supersede), and
+  drops a live depth at or below `maxCachedDepth`. Each replica consumes with a **unique consumer
+  group** so every replica sees every event and delivers only the sessions it holds in memory.
+
+The cache-write rule, default-bot/line-count gating, and the `analysis_update`/`analysis_complete`/
+`analysis_error` socket payloads are identical to the gRPC path — only the engine transport changes.
+
 ## SAN notation
 
 All chess notation logic (SAN ↔ UCI conversion) is handled by the Move Validator service.
