@@ -30,21 +30,26 @@ sourced from Match Manager.
 ## Player stats: single mutation point
 
 When a match ends (via a move, resignation, draw acceptance, or timeout
-enforcement) Match Manager calls user-service **`RecordMatchResult(user_id, outcome)`**
-once per **human** participant with their `WIN`/`LOSS`/`DRAW` outcome. This is
-the **single entry point** for player-stat mutations:
+enforcement) the projector's **`MatchEnded`** on `match.events.v1` — enriched
+with both participants, the source, and the bot sides' creation-time elo —
+drives the stats update: user-service's `MatchEndedConsumer` applies
+`UsersService.ApplyMatchEndedAsync` once per **human** participant with their
+`WIN`/`LOSS`/`DRAW` outcome (kafka task 08; the synchronous
+`RecordMatchResult` gRPC call is gone from this path, the RPC itself is removed
+in kafka 09). This is the **single entry point** for player-stat mutations:
 
 - Bot-vs-bot games have no human participant, so they record nothing and never
-  affect any player's W/L/D (nor, after feature 03, Elo). They still appear in
-  Past Matches via `created_by`.
-- Feature 03 (Glicko-2 ratings) layers rating recomputation onto
-  `RecordMatchResult` **without a new contract** — keep it the one place stats
-  and ratings change.
+  affect any player's W/L/D or rating. They still appear in Past Matches via
+  `created_by`.
+- External matches never enter the event loop (no `MatchEnded` fact), and the
+  consumer additionally skips `source = external` — external games stay unrated.
+- Exactly one mutation per human per match: the `rated_matches` marker on the
+  users row commits in the same row update as the stats it guards, so a
+  redelivered or replayed `MatchEnded` is a no-op.
 
-`RecordMatchResult` reads the user record, increments the matching counter, and
-persists via the generic database-service CRUD (no direct SQL). Match Manager
-wires the user-service gRPC client as a singleton alongside its other clients
-and injects it into `MatchService`.
+`ApplyMatchEndedAsync` reads the user record, increments the matching counter,
+recomputes the Glicko-2 rating (see [[rating-glicko2]]), and persists via the
+generic database-service CRUD (no direct SQL).
 
 ## Where it lives
 

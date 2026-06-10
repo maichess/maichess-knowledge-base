@@ -47,19 +47,35 @@
       equivalent mutant survives.
       NOTE Session B: add the new consumer glue file to stryker `mutate` exclusions (mirror
       `!**/Kafka/UserCdcRelay.cs`).
-- [ ] **HANDOFF: user publishes contracts tag** → then Session B below.
-- [ ] Bump Maichess.PlatformProtos (0.6.0 → new) in ALL consumer services (reconcile versions).
-- [ ] user-service consumer glue: BackgroundService consuming match.events.v1 (Protobuf serde,
-      group e.g. `user-service-rating`, config-gated like Cdc:Enabled, WARN-log decode failures,
-      commit offsets after successful apply) → maps proto → MatchEndedFact. Excluded from
-      coverage. Wire in Program.cs + appsettings (+ Helm env in maichess-deploy).
-- [ ] match-manager enrichment: CreateMatchAsync resolves bot elos via existing BotsClient
-      (ListBots) and stamps MatchCreated; LiveMatchState += Source/WhiteBotElo/BlackBotElo;
-      MatchProjection.Init folds them; MatchProjector + MatchCommands fill the new MatchEnded
-      fields from state. Tests to 100%.
-- [ ] Verify (staging): rated human game → both ratings move once via events; replay no-op.
-- [ ] Update docs: rating-glicko2.md + match-history-and-stats.md (ratings driven by MatchEnded
-      events; synchronous RecordMatchResult call gone); move this task to implemented/ when done.
+- [x] **Contracts published as v0.7.0** (user tagged/pushed; pipeline confirmed).
+- [x] Bumped Maichess.PlatformProtos to 0.7.0 in ALL consumers: analysis, bot-arena (was 0.4.0!),
+      database (+tests), match-maker, match-manager, tournament-bridge, user (csproj);
+      engine + move-validator (build.sbt, `sbt compile` green); socket + auth (package.json,
+      `npm install` resolves 0.7.0, `tsc` green).
+- [x] user-service consumer glue: `Kafka/MatchEndedConsumer.cs` (excluded shell, group
+      `user-service-rating`, Protobuf serde, commit-after-apply, ConsumeException → WARN+skip,
+      processing failure propagates → restart onto committed offset) + pure tested
+      `Kafka/MatchEndedEventMapper.cs` (proto → MatchEndedFact; legacy events without
+      participants map to non-humans → no-op). Gated `RatingEvents:Enabled` in Program.cs.
+      Added Confluent.SchemaRegistry.Serdes.Protobuf. Suite 110/110, coverage 100/100/100;
+      consumer shell added to stryker excludes.
+- [x] match-manager enrichment: `CreateMatchAsync` resolves bot elos via ListBots (only when a
+      side is a bot) and stamps MatchCreated; LiveMatchState += Source/WhiteBotElo/BlackBotElo
+      (defaults keep old Redis blobs deserializing); MatchProjection.Init folds them; new
+      `Kafka/MatchEndedFactory` stamps participants/source/elos on every MatchEnded (projector
+      natural end + resign/draw/timeout in MatchCommands). MatchService ctor gained
+      Bots.BotsClient (wired in Program/tests). Suite 293/293; all NEW code 100% covered (the
+      only gaps are 9 pre-existing methods in MatchesGrpcService/MatchCommandAvroReader/
+      MatchCommandReader/PlayerDocument, identical to HEAD's committed coverage.json).
+- [x] maichess-deploy: `RatingEvents__Enabled=true` on user-service where `kafka.enabled`
+      (helm template verified for staging; prod has kafka disabled → flag absent).
+- [x] Docs updated: rating-glicko2.md + match-history-and-stats.md (ratings driven by MatchEnded
+      events; synchronous RecordMatchResult call gone from the path, RPC removal in 09);
+      CONTRACT_NOTES in user-service (shipped) + match-manager (06 gap note closed).
+- [ ] **Verify on staging** after deploy: play a rated human game to completion → both players'
+      ratings/W-L-D update once via events (watch user-service logs for "Applied match …"); a
+      replayed MatchEnded must not double-apply. Then move this task to implemented/ and update
+      ROADMAP.md.
 
 ## Key code facts (verified)
 - Task 06 already **removed** the synchronous `RecordMatchResultsAsync` from match-manager
