@@ -95,5 +95,83 @@ threshold, and propagates the flag via events so matchmaking and the user read m
 | Outbound | match-db (DatabaseService) | read game data by id (no copy) |
 | Outbound | anticheat-db (DatabaseService) | cases/evidence/audit |
 | Outbound | Kafka `cheat.events.v1` | flag propagation to read models |
+| Outbound | User service `Users.GetUser` | dev gate (`dev_mode`) for the Dev REST surface |
 | Inbound | Match Maker | reads `flagged` from its read model for the toggle |
 | Inbound | Client Dev tab | overview + unflag (dev-gated) |
+
+## Implementation decisions (task 14 — DONE)
+
+Status: **Implemented.** `maichess-anticheat-service` (ASP.NET, flat layout like
+search-service). The decisions below resolve the design above into concrete choices.
+
+### Detection internals
+
+- **Scoring is a layered pure core** (`Detection/`, 100% tested): `EngineCorrelationDetector`
+  (weighted top-1/2/3 engine-match rate over non-book plies, normalised against an
+  honest-play baseline so only the excess scores), `StatisticalDetector` (think-time
+  coefficient of variation — low CV = machine-steady), `CombinedScorer` (per-game
+  `0.7·correlation + 0.3·statistical`; per-case = mean over a sliding window of the last
+  *K* games + an **accuracy-spike** bump; flags at threshold with ≥ MinGames), and the
+  iteration-2 `LiveScorer` (Welford incremental timing, one advisory signal per
+  (match, player)). All thresholds live in `DetectionOptions` (config-bound).
+- **Pre-move handling** is the load-bearing anti-false-positive rule: pre-moved plies are
+  dropped from *all* timing features (statistical + live) and down-weighted in
+  correlation. Because the `premove` bit is client-asserted it can only ever *reduce
+  timing* suspicion — it never touches engine-correlation evidence, so asserting it on
+  every move cannot mask engine assistance. Tested explicitly (heavy pre-mover is never
+  flagged on timing; never raises a live signal).
+- **Timing comes from the event stream, not the match doc** (match docs store no per-move
+  timestamps): a pure `Stream/MatchStreamProjection` folds `match.events.v1` into
+  per-match `MatchTimingState` (think times = `MoveApplied.applied_at_ms` deltas), shared
+  by both iterations. If that state is cold when a match ends, the post-game pass degrades
+  to **correlation-only** rather than failing.
+
+### Engine load
+
+- Post-game analysis is a single bounded `Channel` drained **sequentially** by one worker,
+  and the engine analyzer sleeps a configured delay between `AnalyzePosition` calls; book
+  plies are never sent to the engine. The queue drops (logged) under flood — analysis is
+  rebuildable by replaying `match.events.v1` with a fresh consumer group.
+
+### Statistical feature substitution
+
+- The ADR lists "rating-vs-performance outliers". Ratings aren't available to this service
+  without consuming another read model, so the implemented statistical signal is the
+  **accuracy-spike** feature (a game whose correlation jumps far above the player's own
+  prior average). The seam (`DetectionOptions` + per-game verdicts) supports adding a
+  rating replica later. Recorded in the service `CONTRACT_NOTES.md`.
+
+### Storage & flag propagation
+
+- `anticheat-db` is a DatabaseService **instance** (Mongo) with collections `cases`
+  (one per user: status open→flagged→cleared, score, per-game verdicts with `match_id` +
+  `suspicious_plies`) and `audit` (every flag/unflag/live-suspicion with actor). It
+  **references** match-db by id only — no moves/FENs/game docs are copied. The
+  `anticheat` migration set lives in `maichess-database-service`.
+- `cheat.events.v1` is **born Protobuf** (the Avro stub was retired; the topic was never
+  live). Only `PlayerFlagged`/`PlayerUnflagged` set the durable `flagged` bit on the read
+  models; `LiveSuspicionRaised` is advisory and consumers ignore it for the flag. The
+  match-manager Redis user replica (`CheatFlagProjection`/`CheatFlagConsumer`) and the
+  Match Maker in-memory `CheatFlagStore` (replacing the never-populated KTable `Flagged`
+  field) both consume it.
+
+### Matchmaking toggle
+
+- Per-search `allow_flagged` on `POST /queue` (default false). Admissibility for a pair
+  is symmetric: each flagged side needs the other's consent (`MatchingService.IsAdmissible`),
+  applied in **both** the skill and FIFO paths; the FIFO fallback re-reads the waiting
+  list so a lost skill-pair race still pairs whoever remains. A filter, not a ban.
+
+### Live signal (iteration 2)
+
+- Live scoring is **timing-only** (no live engine calls — that would multiply Engine load
+  per ongoing game). A raised signal surfaces as a `LiveSuspicionRaised` event + a
+  `live_signals` counter and `audit` row visible in the Dev overview. The authoritative
+  flag always comes from the reconciled post-game pass.
+
+### Premove contract follow-up
+
+- The `premove` fields on `MoveSubmitted`/`MoveApplied` and the REST `premove` flag were
+  added to api-contracts but require the **vNext (0.7.0)** publish. Until consumed, the
+  stream fold takes the premove bit as a parameter (defaulting false); the one-line flip +
+  match-manager's premove production are documented in the service `CONTRACT_NOTES.md`.
