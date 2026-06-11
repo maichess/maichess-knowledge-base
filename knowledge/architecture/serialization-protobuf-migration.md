@@ -1,8 +1,19 @@
 # Serialization: Avro → Protobuf on Kafka
 
-**Status:** Accepted — implemented as part of the [Kafka task program](../../tasks/planned/kafka/README.md)
-**Supersedes (eventually):** the Avro/Schema-Registry serialization section of
+**Status:** Accepted — **COMPLETE** as of the [Kafka task program](../../tasks/planned/kafka/README.md) task `09`.
+**Supersedes:** the Avro/Schema-Registry serialization section of
 [event-driven-architecture.md](event-driven-architecture.md).
+
+> **End state (task `09`, contracts v0.10.0):** the Confluent Schema Registry is **removed**.
+> Every topic is **raw Protobuf bytes** — producers write `msg.ToByteArray()` (C#) /
+> `toByteArray` (ScalaPB) / `OutboundEvent.encode` (ts-proto); consumers parse with
+> `T.Parser.ParseFrom(value)` / `parseFrom` / `OutboundEvent.decode(value)`. No 5-byte Confluent
+> framing, no registry lookup, no Avro read arm anywhere. The last Avro-on-the-wire topic
+> (`user.events.v1`, formerly a CDC `GenericRecord`) is now Protobuf, and the `schema-registry`
+> Helm component + every `SCHEMA_REGISTRY_URL` env are gone. Schemas live solely in
+> `maichess-api-contracts/protos/` and ship in `Maichess.PlatformProtos` /
+> `@maichess/platform-protos` / `io.github.maichess:platform-protos`. One IDL — Protobuf — across
+> the Kafka events and the surviving query RPCs.
 
 > **Progress (task `01`):** the Protobuf event schemas exist in
 > `maichess-api-contracts/protos/events/v1/` — one file per topic
@@ -68,14 +79,14 @@ cutover. Transitional dual-path code is the accepted cost.
 - **During migration:** keep the Confluent Schema Registry and switch to its **Protobuf serde**.
   The registry supports Protobuf and preserves BACKWARD compatibility checks and schema evolution
   safety while both formats coexist — this is what makes the dual-read discrimination clean.
-- **Final phase (explicit, after every topic is Protobuf-only):** **remove the Schema Registry**.
-  Producers/consumers switch to **raw Protobuf bytes** with schemas managed solely in
-  `maichess-api-contracts` and generated per language. This is a deliberate end-state, not an
-  accident — the registry comes out all the way once it is no longer carrying Avro or mediating a
+- **Final phase (DONE in task `09`, after every topic was Protobuf-only):** the Schema Registry
+  was **removed**. Producers/consumers now use **raw Protobuf bytes** with schemas managed solely in
+  `maichess-api-contracts` and generated per language. This was a deliberate end-state, not an
+  accident — the registry came out all the way once it was no longer carrying Avro or mediating a
   dual format.
 
-The registry removal is its own final, prompted step so the dual-format safety net is in place
-right up until the last topic is converted.
+The registry removal was its own final, prompted step so the dual-format safety net stayed in place
+right up until the last topic was converted.
 
 ### Per-language serdes
 
@@ -121,8 +132,8 @@ proto schema → consumers read both → producer switches → retire Avro) is a
 
 ## Deployment
 
-- No new infra to *add*; the end state **removes** the `schema-registry` Helm component and its
-  config once migration completes. Until then it stays deployed.
+- No new infra was added; the end state **removed** the `schema-registry` Helm component and its
+  config (task `09`). It is no longer deployed in any environment.
 - Topic names/keys/partitions are unchanged — this is a payload-encoding migration, not a
   topology change. (If a parallel `vN` topic is ever needed for a non-back-compatible event, that
   is handled per-topic, but the default is in-place re-encoding.)

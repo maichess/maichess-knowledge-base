@@ -1,6 +1,6 @@
 # Event-Driven Architecture (Kafka)
 
-**Status:** Accepted — implementation in progress (tracked in the [Kafka task program](../../tasks/planned/kafka/README.md))
+**Status:** Accepted — **COMPLETE** (the [Kafka task program](../../tasks/planned/kafka/README.md) is done through task `09`: the move loop, matchmaking, socket fan-out, analysis, ratings, CDC user events, and the gRPC/registry decommission are all live on raw-Protobuf Kafka).
 **Supersedes:** the point-to-point gRPC call graph in [grpc-overview.md](../../../maichess-api-contracts/grpc-overview.md) for all *command* and *fact* flows.
 
 ## Context
@@ -27,6 +27,10 @@ remain synchronous.
 - Move submission, validation, application, bot-move request/result, draw offers, match end.
 - Matchmaking enqueue/dequeue and pairing.
 - Analysis session control and engine depth updates.
+- External-game bot moves for the tournament bridge: a request/reply loop over a dedicated
+  `engine.commands.v1` / `engine.events.v1` topic pair (correlated by `request_id`), which replaced
+  the synchronous `Engine.GetBestMove` RPC in task `09`. Dedicated topics (not `match.events.v1`)
+  keep external requests off the match log so they never create phantom live matches.
 - All client push (`move_made`, `match_ended`, `matched`, `analysis_update`, …) via a fan-out topic.
 - Rating updates on match end.
 
@@ -58,18 +62,24 @@ Convention: `<context>.<commands|events>.v<n>`.
 | `analysis.events.v1` | sessionId | 7d | delete |
 | `user.events.v1` | userId | infinite | compact |
 | `socket.outbound.v1` | userId / matchId | 1h | delete |
+| `engine.commands.v1` | requestId | 1h | delete |
+| `engine.events.v1` | requestId | 1h | delete |
 
 Partitions: 12 for `match.*`, 3 for the rest. Single broker in staging, 3 (RF=3) in prod.
 
+The `engine.*` pair drives external-game bot moves for the tournament bridge (added in task `09`);
+both reuse the `MatchEvent` envelope (its `oneof` already carries `BotMoveRequested` /
+`BotMoveCalculated`), so no new proto was needed.
+
 ## Serialization
 
-**Protobuf**, generated from `maichess-api-contracts/protos/events/v1/` and shipped in
+**Raw Protobuf bytes**, generated from `maichess-api-contracts/protos/events/v1/` and shipped in
 `Maichess.PlatformProtos` (one IDL for both the events and the surviving query RPCs). During the
-migration a Confluent **Schema Registry** mediates the encoding (`BACKWARD` compatibility) and is
-removed at the end in favor of raw Protobuf bytes — see
+migration a Confluent **Schema Registry** mediated the encoding (`BACKWARD` compatibility); task `09`
+**removed** it in favor of raw `ToByteArray`/`ParseFrom` bytes with no framing — see
 [serialization-protobuf-migration.md](serialization-protobuf-migration.md) and the
-[Kafka task program](../../tasks/planned/kafka/README.md). (The three topics that shipped first were
-authored in Avro and are being re-encoded to Protobuf; no new event type uses Avro.)
+[Kafka task program](../../tasks/planned/kafka/README.md). (The topics that shipped first were
+authored in Avro and were re-encoded to Protobuf; no event type uses Avro any more.)
 
 Every message carries a common envelope (a proto message with a `oneof payload`):
 
@@ -157,7 +167,9 @@ task `08`.
 - **Analysis streaming/cancel:** `StartAnalysis`/`StopAnalysis` on `analysis.commands`; engine
   streams `AnalysisDepthCompleted` to `analysis.events`; cancel via `StopAnalysis` by sessionId.
   Loses native gRPC stream backpressure (accepted trade).
-- **Scala serde:** zio-kafka + Confluent Avro serde (avro4s for schema derivation).
+- **Scala serde:** zio-kafka with a raw ScalaPB Protobuf serde (`parseFrom`/`toByteArray`, no
+  registry) — the engine and move-validator were raw Protobuf from the start, which is what the C#
+  side converged on when the registry was removed in task `09`.
 
 ## Observability
 

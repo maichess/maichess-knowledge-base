@@ -4,7 +4,30 @@
 > Plan: decommission dead gRPC + remove the Schema Registry (raw Protobuf bytes).
 > Approved plan file: `~/.claude/plans/humble-wiggling-rocket.md`.
 
-## Status: Phases 1–4 COMPLETE + verified. Phase 5 proto edits DONE + buf-validated → **BLOCKED on user contract publish** (tag/push vX.Y.Z). Post-publish bump + engine GetBestMove removal + Phase 6 docs remain.
+## Status: ✅ **COMPLETE.** Phases 1–6 done. Contracts published as **v0.10.0**; every consumer bumped 0.9.0→0.10.0 (npm/socket 0.8.0→0.10.0); engine `getBestMove` removed; ALL services rebuilt + tested green; Phase 6 KB narrative docs updated. Only remaining gate: user's staging end-to-end verify.
+
+### POST-PUBLISH (v0.10.0) — DONE
+- [x] Bumped `platform-protos` 0.9.0→0.10.0 in all C# csproj (match-manager, match-maker, analysis,
+      tournament-bridge, user, database ×2) + both `build.sbt` (engine, move-validator); socket
+      `package.json` 0.8.0→0.10.0 (+ `npm install` relocked). (bot-arena 0.7.0 / auth 0.8.0 left as
+      pre-existing skews — neither touches a removed RPC.)
+- [x] Engine `getBestMove` removed: `grpc/BotsServiceImpl.scala` (impl + GetBestMove* imports),
+      `Main.scala` BotsAdapter override + imports, `BotsServiceSpec.scala` getBestMove suite + import.
+- [x] Rebuilt + tested ALL green: engine 213, move-validator 175, match-manager 320, match-maker 101,
+      analysis 47, tournament-bridge 30, user 110, database 56 (+12 Mongo integration skipped),
+      socket build + 5. No reference to any removed proto type remains.
+- [x] Stale-doc cleanup: api-contracts REST narratives (socket.md, match-manager.md, match-maker.md)
+      and `maichess-deploy` anticheat-service.yaml comment updated off the old `Socket.EmitEvent`/
+      `BroadcastMatchEvent`/`SCHEMA_REGISTRY_URL` story.
+- [x] Phase 6 KB narrative docs: serialization-protobuf-migration.md (registry removed/single-IDL),
+      event-driven-architecture.md (raw bytes; engine.commands/events bot loop + topics table; final
+      sync surface), kafka program README (marked COMPLETE). deployment-and-environments.md needed no
+      change (it never listed the registry/topics).
+- [ ] Staging end-to-end verify (USER's manual gate): play a match, matchmaking, socket push,
+      analysis push, a rating update, an external game via the bridge — with NO schema-registry.
+
+---
+### (historical) Status before publish: Phases 1–4 COMPLETE + verified. Phase 5 proto edits DONE + buf-validated → BLOCKED on user contract publish (tag/push vX.Y.Z).
 
 ## Key facts established during exploration
 - **Scala (engine, move-validator) already use RAW Protobuf** (`ProtobufEventSerdes.scala` =

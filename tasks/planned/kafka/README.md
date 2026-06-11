@@ -1,5 +1,14 @@
 # Kafka migration — Protobuf-first program
 
+> **✅ COMPLETE (through task `09`, contracts v0.10.0).** The platform is at the target state: the
+> match domain is event-sourced on Kafka with a Redis live read model and a 202 move contract; every
+> topic is **raw Protobuf bytes** (the Confluent Schema Registry is removed); and the dead gRPC RPCs
+> (`Matches.MakeMove`/`ResignMatch`, `Engine.GetBestMove`, the whole `Socket` service) are gone.
+> External-game bot moves run over the `engine.commands.v1`/`engine.events.v1` request/reply pair.
+> The "Current state" snapshot below is **historical** (pre-`09`); the per-task `NN-*.md` files and
+> `NN-PROGRESS.md` logs record what each step did. Staging end-to-end verification is the only
+> remaining manual gate.
+
 An ordered set of self-contained tasks that take the match domain to its target state: an
 **event-sourced Kafka platform serialized with Protobuf**, a Redis live read model, a 202 move
 contract, and no dead gRPC. Read the design first:
