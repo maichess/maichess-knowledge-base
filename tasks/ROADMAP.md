@@ -17,7 +17,7 @@ lives under [`../knowledge/`](../knowledge/). Shared rules every spec assumes ar
 | 04 | Bot Arena service | ✅ | [spec](implemented/04-bot-arena-service.md) | [bot-arena-service](../knowledge/services/bot-arena-service.md) |
 | 05 | Bot Arena client (Dev UI) | ✅ | [spec](implemented/05-bot-arena-client.md) | — |
 | 06 | External games (Lichess + tournament-server) | 🟥 | superseded → 16 | [external-games](../knowledge/domain/external-games.md) |
-| 07 | Dev "All games" browser | ⬜ | [spec](planned/07-dev-all-games-browser.md) | — |
+| 07 | Dev "All games" browser | 🟡 | [spec](planned/07-dev-all-games-browser.md) | [match-history-and-stats](../knowledge/domain/match-history-and-stats.md) |
 | 08 | Fix: Past Matches list | ✅ | [spec](implemented/08-fix-past-matches.md) | [match-history-and-stats](../knowledge/domain/match-history-and-stats.md) |
 | 09 | Caching 1 — immutable finished-match read model | ✅ | [spec](implemented/09-caching-immutable-match-read-model.md) | [caching-and-read-models](../knowledge/architecture/caching-and-read-models.md) |
 | 10 | Caching 2 — Debezium CDC for `user.events` | ✅ | [spec](implemented/10-cdc-debezium-user-events.md) | [change-data-capture](../knowledge/architecture/change-data-capture.md) |
