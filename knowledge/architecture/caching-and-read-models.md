@@ -173,6 +173,28 @@ the opaque `position_history`, the players, and the last-applied sequence) behin
 - No cache is a system of record. Every read model is rebuildable from its topic (replay) or its
   master store; document the rebuild path with each projection.
 
+## Known gaps / pending optimisations
+
+The following items are specified in the cache map above but not yet fully
+implemented:
+
+- **`analysis_results` Redis L1 is missing.** The ADR specifies "Redis L1 over
+  Mongo L2" for cached analysis depth results, but `AnalysisResultRepository` in
+  analysis-service reads MongoDB directly on every session lookup. No Redis layer
+  exists yet. Impact: repeated analysis of the same position (popular openings,
+  reused FEN setups) re-queries the database on every session start. The fix is a
+  `IAnalysisResultCache` seam (mirroring the `IMatchCache` pattern) backed by a
+  Redis hash at `analysis:{fen}:{botId}` with infinite TTL (append-only data).
+- **`ListBots` uncached in match-manager.** `MatchService` calls
+  `engineClient.ListBotsAsync` on every match creation that involves a bot — the
+  bot list is static until redeploy. An `IMemoryCache` entry with a long TTL
+  (or pre-warmed at startup) would eliminate this per-match gRPC roundtrip.
+- **Leaderboard ZSET (task 12) not yet built.** The rating event consumer is
+  planned but not implemented. No leaderboard reads go to Redis today.
+- **Arena standings not cached.** Arena is currently dev-only; if it becomes
+  production-facing the `CollectionPoller` should consume `match.events.v1`
+  `MatchEnded` from Kafka rather than polling match-manager over gRPC every 2 s.
+
 ## Non-goals
 
 - This ADR does not introduce CDC; that boundary lives in

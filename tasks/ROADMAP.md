@@ -22,10 +22,14 @@ lives under [`../knowledge/`](../knowledge/). Shared rules every spec assumes ar
 | 09 | Caching 1 — immutable finished-match read model | ✅ | [spec](implemented/09-caching-immutable-match-read-model.md) | [caching-and-read-models](../knowledge/architecture/caching-and-read-models.md) |
 | 10 | Caching 2 — Debezium CDC for `user.events` | ✅ | [spec](implemented/10-cdc-debezium-user-events.md) | [change-data-capture](../knowledge/architecture/change-data-capture.md) |
 | 11 | Caching 3 — user read models (Redis + KTable) | ✅ | [spec](implemented/11-user-read-models-redis-and-ktable.md) | [caching-and-read-models](../knowledge/architecture/caching-and-read-models.md) |
-| 12 | Caching 4 — analysis L1 + leaderboards (ZSET) | ✅ | [spec](implemented/12-redis-l1-and-leaderboards.md) | [caching-and-read-models](../knowledge/architecture/caching-and-read-models.md) |
+| 12 | Caching 4 — analysis L1 + leaderboards (ZSET) | ⬜ | [spec](planned/12-redis-l1-and-leaderboards.md) | [caching-and-read-models](../knowledge/architecture/caching-and-read-models.md) |
 | 13 | Caching 5 — search-service (Elasticsearch) | ✅ | [spec](implemented/13-search-service-elasticsearch.md) | [search-service](../knowledge/services/search-service.md) |
 | 14 | Anti-cheat service | ✅ | [spec](implemented/14-anticheat-service.md) | [anticheat-service](../knowledge/services/anticheat-service.md) |
 | 16 | Lichess compatibility for tournament bridge | ⬜ | [spec](planned/16-lichess-bridge-compatibility.md) | [external-games](../knowledge/domain/external-games.md) |
+| 17 | `ListBots` in-memory cache in match-manager | ⬜ | [spec](planned/17-listbots-in-memory-cache.md) | [caching-and-read-models](../knowledge/architecture/caching-and-read-models.md) |
+| 18 | Bot arena Kafka-native completion (replace poller) | ⬜ | [spec](planned/18-bot-arena-kafka-completion.md) | [event-driven-architecture](../knowledge/architecture/event-driven-architecture.md) |
+| 19 | Engine timing strategy ELO calibration | ⬜ | [spec](planned/19-timing-strategy-elo-calibration.md) | — |
+| 20 | Bot arena matrix: color switching toggle | ⬜ | [spec](planned/20-bot-arena-matrix-color-toggle.md) | [bot-arena-service](../knowledge/services/bot-arena-service.md) |
 
 ## Event-driven (Kafka) migration — its own program
 
@@ -56,3 +60,7 @@ The Kafka migration runs on its own track as a dedicated program (see above).
   trusts the CDC-derived `user.events`). `13` needs the Mongo Debezium connector from alongside `10`.
 - `14` rides the user read model from `11` (the `flagged` field) and reuses the `01` Dev gate.
 - `16` extends the already-built tournament bridge; depends on nothing new.
+- `17` is independent; requires only that `IMemoryCache` is available (it already is in match-manager).
+- `18` depends on Kafka task `06` (match events on `match.events.v1` must be live).
+- `19` is operational (run arena series, update `BotRegistry`); depends on `04`/`05` for the arena UI.
+- `20` depends on `04`/`05`; requires a contract bump.

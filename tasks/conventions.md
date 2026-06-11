@@ -109,6 +109,16 @@ These come from the root `CLAUDE.md`, the per-repo `CLAUDE.md` files, and the
    services, client, deploy) — not just the one you were editing. Leaving a broken
    link, stale path, or dead pointer is not "done." Before considering a structural
    change complete, grep the whole workspace for the old name and resolve every hit.
+8. **Keep the knowledge base current.** After every code change, update `maichess-knowledge-base/`
+   to reflect what was actually built:
+   - Update or add the relevant ADR / design doc in `knowledge/architecture/` or
+     `knowledge/services/` if an architectural decision was made.
+   - Update the per-service `CLAUDE.md` if the service's package layout, tier counts,
+     configuration, or capability changes.
+   - Mark the task `✅` in `ROADMAP.md` the moment it ships. If only part of a task is
+     done, move its spec to `planned/` (not `implemented/`) and mark it `🟡`.
+   - The `implemented/` folder is the historical record of *shipped* work. Do not move a
+     spec there until the code is actually live.
 
 ## Client conventions (prompts 01, 02, 05, 06)
 
