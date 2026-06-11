@@ -72,6 +72,13 @@ The REST contract is specified in `maichess-api-contracts/rest/search.md` before
 - Leaderboards are **not** ES — they are Redis sorted sets
   (see [caching-and-read-models.md](../architecture/caching-and-read-models.md)). Do not reach for ES for ranked
   numeric lookups.
+- The Dev **"All games" browser** is **not** this service. It is a *cross-user*,
+  chronological match feed served by Match Manager's `SearchMatches` /
+  `GET /matches/search` (see [match-history-and-stats.md](../domain/match-history-and-stats.md)),
+  with Match-Manager-resolved player names and initiator attribution. This service's
+  `GET /search/matches` stays focused on **per-user** faceted/full-text/position
+  search with best-effort id labels. The two are complementary and the Dev UI
+  cross-links them; do not fold one into the other.
 
 ## Implementation notes (tasks/13 — shipped)
 
