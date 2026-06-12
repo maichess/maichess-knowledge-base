@@ -30,6 +30,34 @@ lives under [`../knowledge/`](../knowledge/). Shared rules every spec assumes ar
 | 18 | Bot arena Kafka-native completion (replace poller) | ⬜ | [spec](planned/18-bot-arena-kafka-completion.md) | [event-driven-architecture](../knowledge/architecture/event-driven-architecture.md) |
 | 19 | Engine timing strategy ELO calibration | ⬜ | [spec](planned/19-timing-strategy-elo-calibration.md) | — |
 | 20 | Bot arena matrix: color switching toggle | ⬜ | [spec](planned/20-bot-arena-matrix-color-toggle.md) | [bot-arena-service](../knowledge/services/bot-arena-service.md) |
+| 21 | Play: choose your color (human queue + vs-bot) | ⬜ | [spec](planned/21-play-color-selection.md) | — |
+| 22 | Analysis read-only mode + stop surfacing gRPC "Cancelled" | ⬜ | [spec](planned/22-analysis-readonly-viewer.md) | [analysis-service](../knowledge/services/analysis-service.md) |
+| 23 | Past matches: include user-initiated in-progress games | ⬜ | [spec](planned/23-past-matches-include-initiated.md) | [match-history-and-stats](../knowledge/domain/match-history-and-stats.md) |
+| 24 | Search: partial matching, searchable names, bot games | ⬜ | [spec](planned/24-search-relevance-and-partial-matching.md) | [search-service](../knowledge/services/search-service.md) |
+| 25 | Fix: "All games" browser fails to load | ⬜ | [spec](planned/25-fix-all-games-fails-to-load.md) | [match-history-and-stats](../knowledge/domain/match-history-and-stats.md) |
+| 26 | Knowledge "classical" bot as default analysis engine + cache | ⬜ | [spec](planned/26-classical-bot-default-analysis.md) | [analysis-service](../knowledge/services/analysis-service.md) |
+| 27 | Bot arena: global capacity scheduler (pending starts + concurrency) | ⬜ | [spec](planned/27-bot-arena-global-capacity-scheduler.md) | [bot-arena-service](../knowledge/services/bot-arena-service.md) |
+| 28 | Auth: premature logout / couple session to activity | ⬜ | [spec](planned/28-fix-premature-logout.md) | — |
+
+## UX bug-fix / feature batch (2026-06-12) — client changes shipped inline
+
+A batch of small client-side reports was implemented directly (no spec needed); the
+larger / backend items above (21–28) were filed as specs. Shipped inline:
+
+- **Tools menu + Dev cleanup** — new **Tools** tab (available to all signed-in users;
+  auth-only via `requireUser`) holding Bot arena, All games, and Search, moved out of
+  `/dev` to `/tools/*`; `/dev` now holds only Anti-cheat + arena concurrency. Removed the **Profile** nav tab — the username/avatar in the top-right is
+  now the profile link. (`maichess-client`: `Nav.tsx`, `app/tools/*`, `app/dev/page.tsx`,
+  `routes.ts`, `proxy.ts`.)
+- **Analysis copy PGN/FEN** — reused `ExportGamePanel` in the game analysis view
+  (`AnalysisClient.tsx`).
+- **"Show analysis" after a game ends** — new `AnalyseGameButton` under the result banner
+  in Match and Watch views (reuses the import-from-match flow).
+- **Dashboard "Continue playing"** — now only lists games where the user is actually a
+  player, not merely the initiator (`app/dashboard/page.tsx`).
+- **Arena collection live-vs-pending tag** — collection badge shows "live" only when a
+  game is actually in flight (`running_games > 0`), else "pending"
+  (`ArenaCollectionList`/`Detail`). Per-game tag tracked in task 27.
 
 ## Event-driven (Kafka) migration — its own program
 
