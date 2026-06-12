@@ -50,3 +50,30 @@ Make an **actively-used** session never expire from idle-timer mechanics:
 - Auth-service: unit tests for token lifetimes + refresh rotation (100% on new code).
 - Client: `npm run build` + `npm run lint`; manual — stay active across the access-token
   window and confirm no logout; background the tab and confirm refresh-on-return.
+
+---
+
+## Outcome (shipped 2026-06-12)
+
+**Root cause (investigation item 3 — refresh silently failing).** The `refresh_token`
+cookie was scoped to path `/auth`, but the browser only ever reaches auth-service through
+the web client's Next.js proxy routes under `/api/auth/*`. A `/auth`-scoped cookie is never
+attached to `/api/auth/refresh`, so **every refresh returned 401 (missing refresh-token
+cookie)**; the access token was never renewed and the user was logged out the moment it hit
+its 15-min expiry — regardless of activity. Refresh-token lifetime/rotation (item 1) was
+already correct (`GETDEL` rotation, fresh 30-day TTL each refresh); background-tab throttling
+(item 2) was a secondary contributor now handled on the client.
+
+**Fixes:**
+- **Contract:** `maichess-api-contracts/rest/auth.md` — `refresh_token` path `/auth` →
+  `/api/auth`, with rationale. (REST markdown; no package version handoff.)
+- **auth-service:** cookie logic extracted to `src/cookies.ts` with
+  `REFRESH_TOKEN_COOKIE_PATH = '/api/auth'`; `routes/auth.ts` consumes it. Tests added
+  (`cookies.test.ts`, `tokens.test.ts`) via the `node:test` runner — 100% on `cookies.ts`;
+  cover token lifetimes + rotation. New `npm test` script. Rationale in `CONTRACT_NOTES.md`.
+- **client:** `lib/hooks/useTokenRefresh.ts` rewritten to couple refresh to activity —
+  refreshes at the access-token half-life (7.5 min) only while the tab is visible and the
+  user interacted within a 15-min window (pointer/key/scroll, route change, or tab return),
+  with a 60-s heartbeat and refresh-on-visibility to defeat background-tab throttling. An
+  idle session lapses gracefully and silently re-establishes from the refresh token on the
+  next interaction; the stale-token → `/api/auth/logout` fallback is unchanged.

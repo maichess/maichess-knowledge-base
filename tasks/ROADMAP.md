@@ -37,7 +37,7 @@ lives under [`../knowledge/`](../knowledge/). Shared rules every spec assumes ar
 | 25 | Fix: "All games" browser fails to load | ⬜ | [spec](planned/25-fix-all-games-fails-to-load.md) | [match-history-and-stats](../knowledge/domain/match-history-and-stats.md) |
 | 26 | Knowledge "classical" bot as default analysis engine + cache | ⬜ | [spec](planned/26-classical-bot-default-analysis.md) | [analysis-service](../knowledge/services/analysis-service.md) |
 | 27 | Bot arena: global capacity scheduler (pending starts + concurrency) | ⬜ | [spec](planned/27-bot-arena-global-capacity-scheduler.md) | [bot-arena-service](../knowledge/services/bot-arena-service.md) |
-| 28 | Auth: premature logout / couple session to activity | ⬜ | [spec](planned/28-fix-premature-logout.md) | — |
+| 28 | Auth: premature logout / couple session to activity | ✅ | [spec](implemented/28-fix-premature-logout.md) | — |
 
 ## UX bug-fix / feature batch (2026-06-12) — client changes shipped inline
 
