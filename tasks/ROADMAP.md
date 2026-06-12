@@ -33,7 +33,7 @@ lives under [`../knowledge/`](../knowledge/). Shared rules every spec assumes ar
 | 21 | Play: choose your color (human queue + vs-bot) | ⬜ | [spec](planned/21-play-color-selection.md) | — |
 | 22 | Analysis read-only mode + stop surfacing gRPC "Cancelled" | ⬜ | [spec](planned/22-analysis-readonly-viewer.md) | [analysis-service](../knowledge/services/analysis-service.md) |
 | 23 | Past matches: include user-initiated in-progress games | ⬜ | [spec](planned/23-past-matches-include-initiated.md) | [match-history-and-stats](../knowledge/domain/match-history-and-stats.md) |
-| 24 | Search: partial matching, searchable names, bot games | ⬜ | [spec](planned/24-search-relevance-and-partial-matching.md) | [search-service](../knowledge/services/search-service.md) |
+| 24 | Search: partial matching, searchable names, bot games | ✅ | [spec](implemented/24-search-relevance-and-partial-matching.md) | [search-service](../knowledge/services/search-service.md) |
 | 25 | Fix: "All games" browser fails to load | ⬜ | [spec](planned/25-fix-all-games-fails-to-load.md) | [match-history-and-stats](../knowledge/domain/match-history-and-stats.md) |
 | 26 | Knowledge "classical" bot as default analysis engine + cache | ⬜ | [spec](planned/26-classical-bot-default-analysis.md) | [analysis-service](../knowledge/services/analysis-service.md) |
 | 27 | Bot arena: global capacity scheduler (pending starts + concurrency) | ⬜ | [spec](planned/27-bot-arena-global-capacity-scheduler.md) | [bot-arena-service](../knowledge/services/bot-arena-service.md) |
