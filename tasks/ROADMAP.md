@@ -25,7 +25,7 @@ lives under [`../knowledge/`](../knowledge/). Shared rules every spec assumes ar
 | 12 | Caching 4 — analysis L1 + leaderboards (ZSET) | ⬜ | [spec](planned/12-redis-l1-and-leaderboards.md) | [caching-and-read-models](../knowledge/architecture/caching-and-read-models.md) |
 | 13 | Caching 5 — search-service (Elasticsearch) | ✅ | [spec](implemented/13-search-service-elasticsearch.md) | [search-service](../knowledge/services/search-service.md) |
 | 14 | Anti-cheat service | ✅ | [spec](implemented/14-anticheat-service.md) | [anticheat-service](../knowledge/services/anticheat-service.md) |
-| 16 | Lichess compatibility for tournament bridge | ⬜ | [spec](planned/16-lichess-bridge-compatibility.md) | [external-games](../knowledge/domain/external-games.md) |
+| 16 | Lichess compatibility for tournament bridge | 🟡 | [spec](planned/16-lichess-bridge-compatibility.md) | [external-games](../knowledge/domain/external-games.md) |
 | 17 | `ListBots` in-memory cache in match-manager | ⬜ | [spec](planned/17-listbots-in-memory-cache.md) | [caching-and-read-models](../knowledge/architecture/caching-and-read-models.md) |
 | 18 | Bot arena Kafka-native completion (replace poller) | ⬜ | [spec](planned/18-bot-arena-kafka-completion.md) | [event-driven-architecture](../knowledge/architecture/event-driven-architecture.md) |
 | 19 | Engine timing strategy ELO calibration | ⬜ | [spec](planned/19-timing-strategy-elo-calibration.md) | — |
