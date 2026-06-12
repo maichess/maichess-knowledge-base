@@ -113,3 +113,38 @@ The REST contract is specified in `maichess-api-contracts/rest/search.md` before
   (Deployment + Service + reindex Job, `Cdc__Enabled` gated on `kafkaConnect.enabled`),
   and the Mongo Debezium connector in `kafka-connect.yaml`. Tests: 100% line/branch/method
   on non-excluded code; Stryker wired mirroring the exclusions.
+
+## Searchable names & partial matching (tasks/24 — shipped)
+
+Task 13 indexed player **ids only** and matched whole tokens, so free-text couldn't find a
+username, bot games, or partial names. Task 24 fixes searchable names and adds partial
+(prefix) matching, asymmetrically by index because of where each index's data originates:
+
+- **Names blob (`names` field).** `CdcDocumentMapper` now emits a per-document `names` blob
+  of every player identifier. For **games** the analysis service has already denormalised
+  resolved **usernames and bot display names** (plus ids) into the white/black dicts, so
+  games are searchable by full username / bot name / id. For **matches**, match-db carries
+  **only player ids and bot ids** (the long-standing "best-effort id labels" — clients
+  hydrate display names from match-manager), so the matches `names` blob is limited to
+  user-ids and bot-ids. The display `white`/`black` use a username → bot-name → bot-id →
+  user-id priority.
+- **Approach for unresolved match names (documented per the task).** Full username/bot-name
+  search for **matches** is **deferred**, not implemented: resolving them would require
+  search-service to maintain a user replica (consuming `user.events.v1`, as match-manager
+  does) and a bot-name cache, breaking the indexer's pure, I/O-free `CdcDocumentMapper`.
+  Out of scope for task 24; recorded as a follow-up. Games already cover the username/bot
+  use case end-to-end.
+- **Partial matching = `edge_ngram` (prefix).** The `names` field uses a custom analyzer:
+  `edge_ngram` (2..20) at index time + a plain lowercase analyzer at search time, so the
+  query term matches indexed prefixes (`magn` → `Magnus`). **Trade-off:** prefix only —
+  `nus` will *not* find `Magnus`; full `ngram` (substring) would, at a much larger index
+  size. Prefix is the chosen size/recall balance, applied to both the games and matches
+  indexes. Free-text (`q`, now also on `/search/matches`) and `opponent` query this field.
+- **Reindex required.** The mapping/analyzer change is not retroactive — existing documents
+  keep the old mapping until reindexed. Roll out by shipping the new mapping then running
+  the existing one-shot reindex Job (`searchService.reindex`), which replays Mongo through
+  the *same* `ProjectGame`/`ProjectMatch` projection (so the `names` blob is backfilled).
+- **No contract bump.** Only `rest/search.md` changed (added `q` to `/search/matches` +
+  name-matching semantics) — Markdown, not the PlatformProtos package, so no tag/publish
+  handoff. The client `SearchPanel` gained a games-vs-matches explanation and a matches
+  free-text field.
