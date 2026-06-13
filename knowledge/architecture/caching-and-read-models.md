@@ -213,9 +213,11 @@ same key is fine since they are separate.
 
 ## Known gaps / pending optimisations
 
-- **Arena standings not cached.** Arena is currently dev-only; if it becomes
-  production-facing the `CollectionPoller` should consume `match.events.v1`
-  `MatchEnded` from Kafka rather than polling match-manager over gRPC every 2 s.
+- **Arena standings not cached.** Arena is currently dev-only; arena standings are
+  recomputed on read rather than materialised into a cached read model. (The arena's
+  match-completion path is no longer a gap: `tasks/18` replaced the 2-second
+  `CollectionPoller` gRPC poll with the `bot-arena-completion` consumer of
+  `match.events.v1` `MatchEnded`.)
 
 ## Non-goals
 
