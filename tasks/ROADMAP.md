@@ -22,11 +22,11 @@ lives under [`../knowledge/`](../knowledge/). Shared rules every spec assumes ar
 | 09 | Caching 1 — immutable finished-match read model | ✅ | [spec](implemented/09-caching-immutable-match-read-model.md) | [caching-and-read-models](../knowledge/architecture/caching-and-read-models.md) |
 | 10 | Caching 2 — Debezium CDC for `user.events` | ✅ | [spec](implemented/10-cdc-debezium-user-events.md) | [change-data-capture](../knowledge/architecture/change-data-capture.md) |
 | 11 | Caching 3 — user read models (Redis + KTable) | ✅ | [spec](implemented/11-user-read-models-redis-and-ktable.md) | [caching-and-read-models](../knowledge/architecture/caching-and-read-models.md) |
-| 12 | Caching 4 — analysis L1 + leaderboards (ZSET) | ⬜ | [spec](planned/12-redis-l1-and-leaderboards.md) | [caching-and-read-models](../knowledge/architecture/caching-and-read-models.md) |
+| 12 | Caching 4 — analysis L1 + leaderboards (ZSET) | ✅ | [spec](implemented/12-redis-l1-and-leaderboards.md) | [caching-and-read-models](../knowledge/architecture/caching-and-read-models.md) |
 | 13 | Caching 5 — search-service (Elasticsearch) | ✅ | [spec](implemented/13-search-service-elasticsearch.md) | [search-service](../knowledge/services/search-service.md) |
 | 14 | Anti-cheat service | ✅ | [spec](implemented/14-anticheat-service.md) | [anticheat-service](../knowledge/services/anticheat-service.md) |
 | 16 | Lichess compatibility for tournament bridge | 🟡 | [spec](planned/16-lichess-bridge-compatibility.md) | [external-games](../knowledge/domain/external-games.md) |
-| 17 | `ListBots` in-memory cache in match-manager | ⬜ | [spec](planned/17-listbots-in-memory-cache.md) | [caching-and-read-models](../knowledge/architecture/caching-and-read-models.md) |
+| 17 | `ListBots` in-memory cache in match-manager | ✅ | [spec](implemented/17-listbots-in-memory-cache.md) | [caching-and-read-models](../knowledge/architecture/caching-and-read-models.md) |
 | 18 | Bot arena Kafka-native completion (replace poller) | ⬜ | [spec](planned/18-bot-arena-kafka-completion.md) | [event-driven-architecture](../knowledge/architecture/event-driven-architecture.md) |
 | 19 | Engine timing strategy ELO calibration | ⬜ | [spec](planned/19-timing-strategy-elo-calibration.md) | — |
 | 20 | Bot arena matrix: color switching toggle | ⬜ | [spec](planned/20-bot-arena-matrix-color-toggle.md) | [bot-arena-service](../knowledge/services/bot-arena-service.md) |

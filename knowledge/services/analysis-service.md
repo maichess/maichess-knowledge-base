@@ -76,6 +76,14 @@ Post-filter in the application layer on `line_count >= session.line_count`. Sort
 
 A limit of 100 is safe given practical engine depth ceilings (~40 moves).
 
+**Redis L1 (caching task 12, Part A).** A Redis L1 fronts this Mongo cache (L2) for the
+default bot's hot positions, behind the `IAnalysisResultCache` seam (hash per position at
+`analysis:{botId}:{fen}`, no expiry, rebuildable from Mongo). The read-through/write-through
+is a `CachingAnalysisResultRepository` decorator over `AnalysisResultRepository`, so the
+session service is unchanged. Only the `DefaultAnalysisBotId` is cached; the startup
+bot-change scrape clears the L1 as well as Mongo. See
+[caching-and-read-models.md](../architecture/caching-and-read-models.md) (Stage 4).
+
 ### analysis_meta
 
 A single document tracking which bot's analysis is currently stored in `analysis_results`. Used

@@ -173,24 +173,46 @@ the opaque `position_history`, the players, and the last-applied sequence) behin
 - No cache is a system of record. Every read model is rebuildable from its topic (replay) or its
   master store; document the rebuild path with each projection.
 
+### Stage 4 implementation notes (analysis L1 + leaderboards — `tasks/12`)
+
+**Part A — `analysis_results` Redis L1 (analysis-service).** A Redis L1 now fronts the
+durable Mongo L2 for the default bot's hot positions. The seam is `IAnalysisResultCache`
+(`Domain/IAnalysisResultCache.cs`, Redis impl `Data/RedisAnalysisResultCache.cs`,
+`[ExcludeFromCodeCoverage]`) — a hash per position at `analysis:{botId}:{fen}` keyed by
+depth, no expiry (allkeys-lru), rebuildable from Mongo. The L1↔L2 read-through/write-through
+lives in a **decorator** `Data/CachingAnalysisResultRepository` that implements the existing
+`IAnalysisResultRepository`, so `AnalysisResultRepository` (L2) and `AnalysisSessionService`
+are unchanged — DI just wraps the inner repo. Only the configured `DefaultAnalysisBotId` is
+cached (other bots bypass L1 straight to Mongo); a session-start lookup checks L1 → L2 (and
+promotes an L2 hit into L1), and a new default-bot depth write persists to Mongo and appends
+to L1. The startup bot-change scrape (`Program.cs`) clears the L1 (`ClearAllAsync`, SCAN
+`analysis:*`) as well as Mongo, so analysis from a previous default bot never survives. The
+decorator is unit-tested against a mocked `IAnalysisResultCache`.
+
+**Part B — rating leaderboards (match-manager).** A Redis sorted set `leaderboard:rating`
+of `userId → Glicko-2 rating` is the ranked read model: top-N is `ZREVRANGE`, "your rank" is
+`ZREVRANK`, both O(log N). It is fed by the **same Stage 3 rating consumer**
+(`UserReplicaConsumer`) — one source of truth — via the pure `Kafka/LeaderboardProjection`
+(only `RatingUpdated` projects a score). The seam is `Data/ILeaderboard` (Redis impl
+`Data/RedisLeaderboard.cs`, `[ExcludeFromCodeCoverage]`); no expiry, rebuildable by replaying
+`user.events.v1`. The read side `Services/LeaderboardService` enriches each ZSET entry from
+the shared user replica (`user:{id}`): it hides `flagged` players (read at query time, never a
+second source of truth) and annotates `provisional` ratings (deviation > 110, mirroring the
+client cutoff). Ranks are the raw 1-based ZSET positions, so hiding a flagged player leaves a
+rank gap rather than renumbering — keeping the top-N list and "your rank" consistent. Exposed
+by match-manager (which already serves the consumer + replica) at REST `GET /leaderboard` and
+`GET /leaderboard/rank/{user_id}`.
+
+**ListBots cache (`tasks/17`).** The engine bot roster is static between deploys, so the
+per-match-creation `ListBots` gRPC roundtrip is now cached behind a 10-minute `IMemoryCache`
+entry (key `engine:bots`). In match-manager it is the private `MatchService.GetBotListAsync`
+(the bot-elo snapshot path in `CreateMatchAsync`); in match-maker the call lived in the thin
+REST adapter, so it was extracted into a testable `Queue/BotRosterCache` consulted by the
+bot-list and bot-vs-bot validation endpoints. Each process has its own `IMemoryCache`; the
+same key is fine since they are separate.
+
 ## Known gaps / pending optimisations
 
-The following items are specified in the cache map above but not yet fully
-implemented:
-
-- **`analysis_results` Redis L1 is missing.** The ADR specifies "Redis L1 over
-  Mongo L2" for cached analysis depth results, but `AnalysisResultRepository` in
-  analysis-service reads MongoDB directly on every session lookup. No Redis layer
-  exists yet. Impact: repeated analysis of the same position (popular openings,
-  reused FEN setups) re-queries the database on every session start. The fix is a
-  `IAnalysisResultCache` seam (mirroring the `IMatchCache` pattern) backed by a
-  Redis hash at `analysis:{fen}:{botId}` with infinite TTL (append-only data).
-- **`ListBots` uncached in match-manager.** `MatchService` calls
-  `engineClient.ListBotsAsync` on every match creation that involves a bot — the
-  bot list is static until redeploy. An `IMemoryCache` entry with a long TTL
-  (or pre-warmed at startup) would eliminate this per-match gRPC roundtrip.
-- **Leaderboard ZSET (task 12) not yet built.** The rating event consumer is
-  planned but not implemented. No leaderboard reads go to Redis today.
 - **Arena standings not cached.** Arena is currently dev-only; if it becomes
   production-facing the `CollectionPoller` should consume `match.events.v1`
   `MatchEnded` from Kafka rather than polling match-manager over gRPC every 2 s.
