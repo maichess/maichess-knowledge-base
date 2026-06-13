@@ -27,7 +27,7 @@ lives under [`../knowledge/`](../knowledge/). Shared rules every spec assumes ar
 | 14 | Anti-cheat service | ✅ | [spec](implemented/14-anticheat-service.md) | [anticheat-service](../knowledge/services/anticheat-service.md) |
 | 16 | Lichess compatibility for tournament bridge | 🟡 | [spec](planned/16-lichess-bridge-compatibility.md) | [external-games](../knowledge/domain/external-games.md) |
 | 17 | `ListBots` in-memory cache in match-manager | ✅ | [spec](implemented/17-listbots-in-memory-cache.md) | [caching-and-read-models](../knowledge/architecture/caching-and-read-models.md) |
-| 18 | Bot arena Kafka-native completion (replace poller) | ⬜ | [spec](planned/18-bot-arena-kafka-completion.md) | [event-driven-architecture](../knowledge/architecture/event-driven-architecture.md) |
+| 18 | Bot arena Kafka-native completion (replace poller) | ✅ | [spec](implemented/18-bot-arena-kafka-completion.md) | [event-driven-architecture](../knowledge/architecture/event-driven-architecture.md) |
 | 19 | Engine timing strategy ELO calibration | ⬜ | [spec](planned/19-timing-strategy-elo-calibration.md) | — |
 | 20 | Bot arena matrix: color switching toggle | ⬜ | [spec](planned/20-bot-arena-matrix-color-toggle.md) | [bot-arena-service](../knowledge/services/bot-arena-service.md) |
 | 21 | Play: choose your color (human queue + vs-bot) | ⬜ | [spec](planned/21-play-color-selection.md) | — |
