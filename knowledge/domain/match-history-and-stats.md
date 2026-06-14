@@ -44,6 +44,17 @@ direction toggle. It is served by `SearchMatches` (gRPC) / `GET /matches/search`
   and stays `[ExcludeFromCodeCoverage]`. `player_id` and `initiator_id` are ANDed;
   the chronological order and the `since_ms`/`until_ms` bounds key on
   `finished_at_ms`.
+- **Whole-collection candidate fetch (no-scope path).** With no `player_id`/
+  `initiator_id` scope — the default browse — `SearchAsync` lists the **entire**
+  `matches` collection in one `Database.List`, then the service filters/orders/pages
+  it in memory. That single `ListResponse` can be large, so the match-manager →
+  match-db gRPC client is built with `MaxReceiveMessageSize = null` (Program.cs);
+  the stock 4 MB default would `RESOURCE_EXHAUSTED` past a few hundred matches and
+  surface as "Failed to load games" (task 25). The scoped path runs cheap equality
+  lookups (white/black/created_by) and is naturally small. This fetch-all-then-
+  filter design is intentional for a low-volume Dev tool; the scale lever, if ever
+  needed, is DB-side ordering + paging (`ListRequest` already has `limit`/`offset`;
+  a `Count` RPC already exists; only a `sort` field would be missing).
 - **Read, so synchronous (post-Kafka).** Like the other list reads it queries the
   durable match-db materialised by the projector; it deliberately does **not**
   overlay the Redis live read model — rows link into the match/Watch viewer, which
@@ -65,8 +76,9 @@ direction toggle. It is served by `SearchMatches` (gRPC) / `GET /matches/search`
   `lib/hooks/useAllGames.ts` (filter + pagination state, debounced text filters,
   optional light polling for the live view); `lib/components/dev/AllGamesPanel.tsx`
   (filters + chronological table with a source tag and an initiator column);
-  `app/dev/games/page.tsx` (guarded by `requireDevUser`); the "All games" card on
-  the Dev landing.
+  `app/tools/games/page.tsx` (under the **Tools** tab, guarded by `requireUser` —
+  moved out of `/dev` in the 2026-06-12 UX batch; the `/api/dev/games` proxy path is
+  unchanged). The Tools landing links it alongside Bot arena and Search.
 
 Contract introduced in `Maichess.PlatformProtos` v0.9.0: `SearchMatches` RPC +
 `SearchMatchesRequest`/`SearchMatchesResponse` in

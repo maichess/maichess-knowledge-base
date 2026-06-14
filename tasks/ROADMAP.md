@@ -17,7 +17,7 @@ lives under [`../knowledge/`](../knowledge/). Shared rules every spec assumes ar
 | 04 | Bot Arena service | ✅ | [spec](implemented/04-bot-arena-service.md) | [bot-arena-service](../knowledge/services/bot-arena-service.md) |
 | 05 | Bot Arena client (Dev UI) | ✅ | [spec](implemented/05-bot-arena-client.md) | — |
 | 06 | External games (Lichess + tournament-server) | 🟥 | superseded → 16 | [external-games](../knowledge/domain/external-games.md) |
-| 07 | Dev "All games" browser | 🟡 | [spec](planned/07-dev-all-games-browser.md) | [match-history-and-stats](../knowledge/domain/match-history-and-stats.md) |
+| 07 | Dev "All games" browser | ✅ | [spec](implemented/07-dev-all-games-browser.md) | [match-history-and-stats](../knowledge/domain/match-history-and-stats.md) |
 | 08 | Fix: Past Matches list | ✅ | [spec](implemented/08-fix-past-matches.md) | [match-history-and-stats](../knowledge/domain/match-history-and-stats.md) |
 | 09 | Caching 1 — immutable finished-match read model | ✅ | [spec](implemented/09-caching-immutable-match-read-model.md) | [caching-and-read-models](../knowledge/architecture/caching-and-read-models.md) |
 | 10 | Caching 2 — Debezium CDC for `user.events` | ✅ | [spec](implemented/10-cdc-debezium-user-events.md) | [change-data-capture](../knowledge/architecture/change-data-capture.md) |
@@ -34,7 +34,7 @@ lives under [`../knowledge/`](../knowledge/). Shared rules every spec assumes ar
 | 22 | Analysis read-only mode + stop surfacing gRPC "Cancelled" | ✅ | [spec](implemented/22-analysis-readonly-viewer.md) | [analysis-service](../knowledge/services/analysis-service.md) |
 | 23 | Past matches: include user-initiated in-progress games | ✅ | [spec](implemented/23-past-matches-include-initiated.md) | [analysis-service](../knowledge/services/analysis-service.md) |
 | 24 | Search: partial matching, searchable names, bot games | ✅ | [spec](implemented/24-search-relevance-and-partial-matching.md) | [search-service](../knowledge/services/search-service.md) |
-| 25 | Fix: "All games" browser fails to load | ⬜ | [spec](planned/25-fix-all-games-fails-to-load.md) | [match-history-and-stats](../knowledge/domain/match-history-and-stats.md) |
+| 25 | Fix: "All games" browser fails to load | ✅ | [spec](implemented/25-fix-all-games-fails-to-load.md) | [match-history-and-stats](../knowledge/domain/match-history-and-stats.md) |
 | 26 | Knowledge "classical" bot as default analysis engine + cache | ⬜ | [spec](planned/26-classical-bot-default-analysis.md) | [analysis-service](../knowledge/services/analysis-service.md) |
 | 27 | Bot arena: global capacity scheduler (pending starts + concurrency) | ⬜ | [spec](planned/27-bot-arena-global-capacity-scheduler.md) | [bot-arena-service](../knowledge/services/bot-arena-service.md) |
 | 28 | Auth: premature logout / couple session to activity | ✅ | [spec](implemented/28-fix-premature-logout.md) | — |
