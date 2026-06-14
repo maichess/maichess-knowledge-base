@@ -45,3 +45,29 @@ can jump back into review/analysis without waiting for the game to end.
 - Match-manager: unit tests for the listing with/without ongoing games (100% on new code).
 - Client: `npm run build` + `npm run lint` + manual check (start a game, see it appear
   as in-progress in Past matches, open it).
+
+---
+
+## Resolution (shipped 2026-06-14)
+
+**The backing service was analysis-service, not match-manager.** The Analysis → Past matches
+tab (`UserMatchList`/`useUserMatches`) is served by analysis-service `GET /matches` (reads
+match-db directly), **not** Match Manager's `ListUserMatches` (which powers the *Profile* Past
+Matches view via `useMatchHistory`/`MatchHistory`). Confirming the endpoint in the contract
+before coding — as the spec instructed — surfaced this; match-manager was left untouched.
+
+Contract (REST-only, no proto change → **no `Maichess.PlatformProtos` version bump**):
+- `GET /matches` gained a `status` query param (`finished` default | `ongoing` | `all`).
+- `POST /games/from-match/{match_id}` now accepts ongoing matches (imports a point-in-time
+  snapshot, result `*`) instead of rejecting them with `400`.
+
+Implementation:
+- **analysis-service** — `AnalysisGameService.ParseStatusFilter` + a `UserMatchStatusFilter`
+  arg on `ListUserMatchesAsync`; the ongoing rejection (`MatchStillOngoingException`, now
+  deleted) dropped from `ImportFromMatchAsync`. Tests at 100% line/branch/method.
+- **client** — `useUserMatches` requests `status=all`; `UserMatchList` shows an "In progress"
+  badge on ongoing rows. Opening one imports the snapshot and lands in the read-only analysis
+  viewer (task 22).
+
+See [analysis-service](../../knowledge/services/analysis-service.md) ("match-db access for the
+match list and match import").

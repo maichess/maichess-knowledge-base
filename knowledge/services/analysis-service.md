@@ -5,8 +5,9 @@
 The analysis service is the back-end for post-game and ad-hoc chess analysis. It has two
 distinct responsibilities:
 
-1. **Game persistence** — stores analysis games sourced from PGN imports, finished matches, or
-   arbitrary FEN positions, keyed per user. Exposes a REST API consumed directly by the client.
+1. **Game persistence** — stores analysis games sourced from PGN imports, played matches
+   (finished or in-progress), or arbitrary FEN positions, keyed per user. Exposes a REST API
+   consumed directly by the client.
 
 2. **Engine analysis streaming** — manages per-user analysis sessions. When a client starts
    analysis for a session, the service calls the Engine service's `AnalyzePosition` endpoint and
@@ -109,7 +110,7 @@ See [`rest/analysis.md`](../../../maichess-api-contracts/rest/analysis.md).
 | `GET` | `/games` | List the authenticated user's saved games |
 | `GET` | `/games/{id}` | Get a single game with full move list and PGN |
 | `POST` | `/games` | Import and save a game from PGN |
-| `POST` | `/games/from-match/{match_id}` | Import a finished match as an analysis game |
+| `POST` | `/games/from-match/{match_id}` | Import a match (finished or ongoing) as an analysis game |
 | `POST` | `/games/from-fen` | Create an analysis game from an arbitrary FEN |
 
 ### Configuration endpoints
@@ -249,20 +250,43 @@ The analysis service contains no chess notation or board logic.
 - **Whatif PGN export:** call `Moves.ConvertSequenceToSan(whatif_base_fen, session.WhatifMoves)` → `san_moves[]` in one round-trip.
 - **PGN stored in `analysis_games.pgn`** uses SAN notation throughout.
 
-## match-db access for match import
+## match-db access for the match list and match import
 
-`POST /games/from-match/{match_id}` reads match data directly from match-db via
-`Database.Get(collection="matches", id=match_id)`. It does not call the Match Manager gRPC
-service.
+Both the match-picker list and the importer read match-db directly via the generic
+`Database` gRPC (`List`/`Get` on `matches`). Neither calls the Match Manager gRPC service.
+
+### `GET /matches` — the match picker
+
+Lists the authenticated user's matches (newest first by `last_move_at`) so the client can pick
+one to analyse. `MatchService.ListUserMatchesAsync` queries match-db by `white_user_id` and
+`black_user_id`, dedups, and filters by a `status` query param parsed by
+`AnalysisGameService.ParseStatusFilter`:
+
+| `status` | Returns |
+|---|---|
+| `finished` (default) | matches whose `status` is not `ongoing` (and non-empty) |
+| `ongoing` | only `ongoing` matches |
+| `all` | both ongoing and finished |
+
+An unknown value throws `InvalidMatchStatusFilterException` → `400`. The Past-matches tab in the
+client (`useUserMatches`/`UserMatchList`) requests `status=all` and renders an "In progress"
+badge on ongoing rows. This list is independent of Match Manager's `ListUserMatches`
+(see [match-history-and-stats](../domain/match-history-and-stats.md)).
+
+### `POST /games/from-match/{match_id}` — the importer
+
+`Database.Get(collection="matches", id=match_id)` fetches one match. An **ongoing** match is
+importable: it yields a point-in-time snapshot of the moves played so far (result `*`) — it is
+**not** kept in sync as the live game continues, so re-import to capture later moves.
 
 Fields used from the match document:
 
 | Field | Used for |
 |---|---|
-| `status` | Must not be `"ongoing"` |
-| `white_user_id`, `black_user_id` | Participant check |
+| `status` | Mapped to the PGN result (`ongoing` → `*`); ongoing is **not** rejected |
+| `white_user_id`, `black_user_id`, `created_by_user_id` | Authorization (participant or initiator) |
 | `white_bot_id`, `black_bot_id` | Player info in the imported game |
-| `moves` | UCI move list |
+| `moves` | UCI move list (partial for ongoing matches) |
 | `fen_history` | Pre-computed FENs (`fen_history[0]` = start, `fen_history[N]` = after move N) |
 
 The `position_history` field in the match document is ignored entirely.
@@ -291,7 +315,8 @@ Auth is handled locally via JwtBearer middleware (same shared JWT key).
 
 - All game and session operations are scoped to the authenticated user.
 - `POST /games/from-match/{match_id}` additionally requires the user to have been a participant
-  (white or black player) of the match.
+  (white or black player) **or** the initiator (`created_by`) of the match — the latter covers
+  bot-vs-bot games the user spawned.
 
 ## Known limitations
 
