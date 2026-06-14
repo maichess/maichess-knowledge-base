@@ -44,8 +44,14 @@ start position; the standard position is labelled "Standard", others "FEN N".
 - **Single** — for each FEN, `games_per_fen` games. With `keep_switching_colors`
   the white/black assignment flips every game, continuously across FENs;
   otherwise it is fixed.
-- **Matrix** — every unordered bot pair, for each FEN, `games_per_fen` games,
-  with colors alternating per game continuously within a pairing.
+- **Matrix** — every unordered bot pair, for each FEN, `games_per_fen` games. A
+  `color_mode` toggle chooses how colors are assigned to those games: `alternating`
+  (default) swaps colors deterministically per game continuously within a pairing;
+  `random` assigns each game's colors via the arena RNG (seeded per collection).
+  `games_per_fen` is the per-FEN game count in **both** modes — the mode affects
+  only color assignment, not how many games are spawned. Balanced color coverage
+  in `alternating` mode therefore comes from an even `games_per_fen`; `random` mode
+  suits quick exploratory series where exact color balance does not matter.
 - **Tournament** — all bots seeded into a **random** single-elimination bracket
   (Fisher-Yates with an injectable RNG). A non-power-of-2 field is reduced to a
   power of two in the first round by giving the leading seeds **byes**. Each stage

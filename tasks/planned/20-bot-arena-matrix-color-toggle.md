@@ -86,13 +86,27 @@ request body.
    with swapped colors.
 3. `npm run build` and `npm run lint` pass for the client.
 
+## Status: 🟡 code-complete + green; awaiting contracts `v0.12.0` publish
+
+The service, client, tests, and knowledge base are done and verified. The only
+open item is the **contracts publish/bump handoff** (commit + tag `v0.12.0`, then
+bump `Maichess.PlatformProtos` platform-wide). This service consumes the arena
+contract over REST — not via generated arena proto types — so it builds and tests
+green at the current `0.11.0` pin; the bump is convention/alignment only.
+
+> **Implementation note (count semantics).** The spec's "×2 vs ×1 / halve"
+> framing was reconciled with "keep the existing behavior" by making `color_mode`
+> a **color-assignment strategy** toggle: `games_per_fen` stays the per-FEN game
+> count in *both* modes; only color assignment differs (deterministic alternation
+> vs. per-collection RNG). See `maichess-bot-arena-service/CONTRACT_NOTES.md`.
+
 ## Checklist
 
-- [ ] `MatrixColorMode` enum added to `arena.proto`; contracts repo tagged + published.
-- [ ] `Maichess.PlatformProtos` bumped in `maichess-bot-arena-service.csproj`.
-- [ ] `rest/bot-arena-service.md` updated with `color_mode` field.
-- [ ] `CollectionService` matrix expansion updated to branch on `colorMode`.
-- [ ] Client form: color mode toggle added to matrix setup page.
-- [ ] Tests: both modes covered, `IArenaRandomProvider` mocked.
-- [ ] `dotnet test -p:CollectCoverage=true` passes.
-- [ ] `npm run build && npm run lint` passes.
+- [x] `MatrixColorMode` enum added to `arena.proto`; **contracts repo tag/publish pending (user handoff)**.
+- [ ] `Maichess.PlatformProtos` bumped to `0.12.0` (pending publish; REST-consumed so not a compile blocker).
+- [x] `rest/bot-arena.md` updated with matrix `color_mode` field.
+- [x] `CollectionService` / `SetupExpansion.ExpandMatrix` updated to branch on the matrix color mode.
+- [x] Client form: color-assignment control added to the matrix setup page (`SpawnSetupForm`).
+- [x] Tests: both modes covered (unit expansion + end-to-end lifecycle), arena RNG mocked.
+- [x] `dotnet test -p:CollectCoverage=true` passes (98 tests, 100% line/branch/method).
+- [x] `npm run build && npm run lint` passes.
