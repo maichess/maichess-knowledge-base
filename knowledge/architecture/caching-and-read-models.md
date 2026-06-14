@@ -202,13 +202,16 @@ the deploy that flips the default, `stored_bot_id` (`blitz`) ≠ `DefaultBotId`
 `analysis_meta` is updated — guaranteeing the previous default's lines cannot be served. No
 pre-warm is done; the new default's cache fills lazily from live analysis.
 
-> **Engine nuance (not a caching concern):** the engine's multi-PV `AnalyzePosition` stream
-> currently runs the tier-1 `Search` for *every* non-`Basic` bot (`searchMultiPv` in
-> `EngineServiceLive`), so the *lines* produced are identical regardless of which bot the
-> session selects — `bot_id` only gates `Basic` rejection and which results get cached. Keying
-> the cache by `bot_id` is therefore forward-compatible: if/when per-bot analysis depth lands,
-> no migration is required. Flipping the default is a UX/labelling change today, not a change in
-> the analysis output.
+> **Engine note (not a caching concern):** multi-PV `AnalyzePosition` **dispatches on the bot's
+> engine `variant`** (`EngineServiceLive.newMultiPvSearch`): `Base`→`Search`,
+> `EnhancedSearch`→`SearchV2`, `EnhancedOrdering`→`SearchV3`, `EnhancedEval`/`Knowledge`→`SearchV4`.
+> So the new default (`knowledge_classical`) genuinely analyses with the stronger `SearchV4`
+> evaluator (king safety, pawn structure, rook bonuses, full mobility), not the tier-1 `Search`.
+> Because lines now differ by tier, `bot_id` in the cache key is load-bearing, not just
+> forward-looking. The `Knowledge` tier's opening book and tablebase are single-move oracles with
+> no multi-line analogue, so it analyses with its underlying `SearchV4` (same lines as
+> `EnhancedEval`); folding tablebase WDL/DTZ into low-piece analysis lines is a possible future
+> enhancement.
 
 **Part B — rating leaderboards (match-manager).** A Redis sorted set `leaderboard:rating`
 of `userId → Glicko-2 rating` is the ranked read model: top-N is `ZREVRANGE`, "your rank" is
