@@ -86,13 +86,18 @@ request body.
    with swapped colors.
 3. `npm run build` and `npm run lint` pass for the client.
 
-## Status: 🟡 code-complete + green; awaiting contracts `v0.12.0` publish
+## Status: ✅ DONE — contracts published as `v0.12.0`; pins bumped platform-wide
 
-The service, client, tests, and knowledge base are done and verified. The only
-open item is the **contracts publish/bump handoff** (commit + tag `v0.12.0`, then
-bump `Maichess.PlatformProtos` platform-wide). This service consumes the arena
-contract over REST — not via generated arena proto types — so it builds and tests
-green at the current `0.11.0` pin; the bump is convention/alignment only.
+The service, client, tests, and knowledge base are done and verified, and the
+**contracts publish/bump handoff** is complete: contracts tagged/published as
+`v0.12.0` and `Maichess.PlatformProtos` bumped `0.11.0 → 0.12.0` across the C#
+fleet (all `*.csproj`) plus the contract source (`dotnet/Maichess.PlatformProtos.csproj`,
+`npm/package.json`). This service consumes the arena contract over REST — not via
+generated arena proto types — so it built and tested green at the prior `0.11.0`
+pin; the bump is convention/alignment only. The Scala services (engine,
+move-validator @ `0.10.0`) and npm consumers (auth `^0.8.0`, socket `^0.10.0`)
+were left as-is — they don't consume the arena proto, matching how the `0.11.0`
+bump was scoped (C# csproj only).
 
 > **Implementation note (count semantics).** The spec's "×2 vs ×1 / halve"
 > framing was reconciled with "keep the existing behavior" by making `color_mode`
@@ -102,8 +107,8 @@ green at the current `0.11.0` pin; the bump is convention/alignment only.
 
 ## Checklist
 
-- [x] `MatrixColorMode` enum added to `arena.proto`; **contracts repo tag/publish pending (user handoff)**.
-- [ ] `Maichess.PlatformProtos` bumped to `0.12.0` (pending publish; REST-consumed so not a compile blocker).
+- [x] `MatrixColorMode` enum added to `arena.proto`; contracts repo tagged/published as `v0.12.0`.
+- [x] `Maichess.PlatformProtos` bumped to `0.12.0` platform-wide (all C# `*.csproj` + contract source).
 - [x] `rest/bot-arena.md` updated with matrix `color_mode` field.
 - [x] `CollectionService` / `SetupExpansion.ExpandMatrix` updated to branch on the matrix color mode.
 - [x] Client form: color-assignment control added to the matrix setup page (`SpawnSetupForm`).
