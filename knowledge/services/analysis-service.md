@@ -217,6 +217,27 @@ task `07`:
 The cache-write rule, default-bot/line-count gating, and the `analysis_update`/`analysis_complete`/
 `analysis_error` socket payloads are identical to the gRPC path — only the engine transport changes.
 
+## Client viewing modes (read-only) — task 22
+
+The analysis view has a client-side **engine on/off** toggle, so it doubles as a plain
+past-match viewer. This is entirely a `maichess-client` concern — **the analysis-service
+is unchanged**:
+
+- **Engine off (read-only):** the client creates **no session**. Navigation is computed
+  purely from the precomputed `AnalysisGame.starting_fen` + `fens` (the `fenAtIndex`
+  helper), so no `/sessions/*` calls are made and no engine runs. Whatif is unavailable
+  (it needs a session). Deep links open this mode via `?analysis=off`; the
+  All-games and Search result rows link there so a result opens straight into the viewer.
+- **Toggling engine on:** the client creates the session and starts analysis as usual,
+  resuming at the position currently being viewed.
+
+The recurring gRPC **`Cancelled` / "Call canceled by the client"** status that the engine
+stream emits when navigation supersedes an in-flight analysis is **expected, not an
+error**. The server already cancels silently (no `analysis_complete`), and the client now
+also (a) ignores `analysis_error` payloads whose message is a cancellation and (b)
+debounces rapid navigation so a burst of arrow presses starts one engine stream rather
+than spawn-then-cancel one per press.
+
 ## SAN notation
 
 All chess notation logic (SAN ↔ UCI conversion) is handled by the Move Validator service.

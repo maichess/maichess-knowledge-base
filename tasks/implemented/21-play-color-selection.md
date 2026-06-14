@@ -64,3 +64,42 @@ Let a player choose which color they play:
 - Match-maker: unit tests for each matching-rule branch above (100% on new code).
 - Client: `npm run build` + `npm run lint` + manual click-through (queue with each
   preference, vs-bot with each color).
+
+## Status: ✅ DONE — no contract version bump required
+
+Implemented and verified. **Key deviation from the spec's "Contracts" section:** the
+spec anticipated a proto enum (`ColorPreference`) and a `Maichess.PlatformProtos`
+publish/bump. In this codebase the match-maker is **REST-only** (no gRPC service) and
+color is resolved *before* the match is created — the match-maker just orders the white/
+black slots and publishes the existing `CreateMatchCommand`. So **no proto changed, no
+new package version was published, and no consumer pins were bumped.** Only the REST
+contract (`rest/match-maker.md`) was updated.
+
+What shipped:
+
+- **Contract:** `rest/match-maker.md` — `POST /queue` documents `color_preference`
+  (`white`/`black`/`any`; `random` accepted for vs-bot) and the resolution rules.
+- **Match-maker service:** `ColorPreference` enum + `ColorPreferenceParser`,
+  `ColorAssignment` (`FirstIsWhite` / `HumanIsWhite`), `IColorRandom` +
+  `DefaultColorRandom`; threaded through `QueueEntry` (Redis `color_preference` hash
+  field), `IQueueRepository`/`QueueRepository`, `QueueingService` (validation + vs-bot
+  slot swap), and `MatchingService` (side resolution after pairing). Registered in
+  `Program.cs`. `.editorconfig`: `CA5394` disabled (game-mechanic RNG, mirrors bot-arena).
+- **Tests:** `ColorPreferenceTests` (parser + assignment + seeded RNG) and
+  `ColorSelectionTests` (human-queue + vs-bot behaviour). `dotnet test -p:CollectCoverage=true`
+  → **144 tests, 100% line/branch/method.**
+- **Client:** `lib/models/queue.ts` (`ColorPreference`, `color_preference` on
+  `QueueRequest`); `app/play/page.tsx` — White/Any segmented control for the human queue and
+  White/Random/Black for vs-bot (defaults preserve current behaviour); `npm run build` +
+  `npm run lint` green.
+
+> Verification note: Claude's shell cannot restore the `0.12.0` `PlatformProtos` pin
+> (GitHub Packages 401), so the service was compiled/tested against the cached `0.11.0`
+> (no new proto types are used, so this is equivalent) and the pin restored to `0.12.0`.
+
+## Checklist
+
+- [x] `rest/match-maker.md` updated with `color_preference` (no proto change → no version bump).
+- [x] Match-maker resolves color for the human queue (each branch) and vs-bot.
+- [x] Tests cover every matching-rule branch; 100% coverage; `dotnet test` green (144 tests).
+- [x] Client color selectors added for human queue and vs-bot; build + lint green.

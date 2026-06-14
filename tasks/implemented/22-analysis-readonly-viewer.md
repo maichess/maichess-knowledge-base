@@ -72,3 +72,39 @@ Two layers, do both:
 No client test framework — verify with `npm run build`, `npm run lint`, and a manual
 click-through: toggle analysis off/on; rapid-navigate (confirm no "Cancelled" text);
 open a row from all-games/search and confirm it lands in the read-only viewer.
+
+## Status: ✅ DONE — client-only, no contract change
+
+Implemented entirely in `maichess-client`; the analysis-service is untouched (no proto/
+REST change, no version bump). `npm run build` + `npm run lint` green.
+
+What shipped:
+
+- **A. Read-only mode (items 5 + 8):**
+  - `lib/utils/analysisFen.ts` — `fenAtIndex(game, index)` (handles both
+    `fens.length === moves.length` and `+1`).
+  - `useAnalysisSession(game, config, enabled)` — when `enabled` is false, **no session**
+    is created and navigation dispatches a new `NAVIGATED_LOCAL` action (client-side fen,
+    never sets `analysisRunning`); a `SESSION_ENDED` action tears down on toggle-off; toggling
+    on creates the session and **resumes at the current index**.
+  - `app/analysis/[id]/page.tsx` reads `searchParams` and passes
+    `analysisEnabled={analysis !== 'off'}`. `AnalysisClient` holds the runtime toggle
+    (`engineOn`), gates nav buttons on a `ready` value (`!engineOn || hasSession`), hides
+    Advanced settings when off, and renders a muted "Engine analysis off" panel state.
+  - Result rows open the viewer engine-off via the shared `useOpenAnalysis` hook
+    (`?analysis=off`): `AllGamesPanel` gets an **Analyse** column (match → from-match import);
+    `SearchPanel` rows are clickable (games/positions-game link straight to the game id,
+    matches/positions-match import first).
+- **B. Stop surfacing "Cancelled" (item 9):** `useAnalysisSocket` ignores `analysis_error`
+  payloads whose message is a client cancellation (`isCancellationMessage`), and
+  `useAnalysisSession` debounces server navigation (`NAVIGATE_DEBOUNCE_MS = 120`) so a burst
+  of presses starts one engine stream instead of spawn-then-cancel per press.
+
+## Checklist
+
+- [x] `analysisEnabled` threaded from `?analysis=off` + runtime toggle.
+- [x] Client-side navigation with no session in read-only mode (`fenAtIndex`, `NAVIGATED_LOCAL`).
+- [x] Nav buttons / panel gated on `ready`; muted off-state panel; whatif disabled when off.
+- [x] All-games + search rows open the read-only viewer (`useOpenAnalysis`, `?analysis=off`).
+- [x] "Cancelled" gRPC status no longer surfaced (ignore + debounce).
+- [x] `npm run build` + `npm run lint` green.
