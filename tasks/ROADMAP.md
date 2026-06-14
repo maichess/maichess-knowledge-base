@@ -35,7 +35,7 @@ lives under [`../knowledge/`](../knowledge/). Shared rules every spec assumes ar
 | 23 | Past matches: include user-initiated in-progress games | ✅ | [spec](implemented/23-past-matches-include-initiated.md) | [analysis-service](../knowledge/services/analysis-service.md) |
 | 24 | Search: partial matching, searchable names, bot games | ✅ | [spec](implemented/24-search-relevance-and-partial-matching.md) | [search-service](../knowledge/services/search-service.md) |
 | 25 | Fix: "All games" browser fails to load | ✅ | [spec](implemented/25-fix-all-games-fails-to-load.md) | [match-history-and-stats](../knowledge/domain/match-history-and-stats.md) |
-| 26 | Knowledge "classical" bot as default analysis engine + cache | ⬜ | [spec](planned/26-classical-bot-default-analysis.md) | [analysis-service](../knowledge/services/analysis-service.md) |
+| 26 | Knowledge "classical" bot as default analysis engine + cache | ✅ | [spec](implemented/26-classical-bot-default-analysis.md) | [analysis-service](../knowledge/services/analysis-service.md) |
 | 27 | Bot arena: global capacity scheduler (pending starts + concurrency) | ⬜ | [spec](planned/27-bot-arena-global-capacity-scheduler.md) | [bot-arena-service](../knowledge/services/bot-arena-service.md) |
 | 28 | Auth: premature logout / couple session to activity | ✅ | [spec](implemented/28-fix-premature-logout.md) | — |
 

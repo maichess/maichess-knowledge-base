@@ -189,6 +189,27 @@ to L1. The startup bot-change scrape (`Program.cs`) clears the L1 (`ClearAllAsyn
 `analysis:*`) as well as Mongo, so analysis from a previous default bot never survives. The
 decorator is unit-tested against a mocked `IAnalysisResultCache`.
 
+**Default-bot change & stale entries (`tasks/26`).** The analysis default was flipped from
+`blitz` to the tier-5 knowledge engine `knowledge_classical`
+(`Analysis__DefaultBotId` in the analysis-service helm env). No cache-keying change was
+needed: **`bot_id` already participates in the cache key at both layers** — the Mongo L2
+filter is `{fen, bot_id}` and the Redis L1 key is `analysis:{botId}:{fen}`. So entries cached
+under the old default are keyed under `blitz` and are simply never hit for the new default
+(the "no correctness problem, only a cold cache" branch — per-bot results coexist and old keys
+age out under allkeys-lru). The startup bot-change scrape is the belt-and-braces backstop: on
+the deploy that flips the default, `stored_bot_id` (`blitz`) ≠ `DefaultBotId`
+(`knowledge_classical`), so `analysis_results` is purged from Mongo and the L1 is cleared, then
+`analysis_meta` is updated — guaranteeing the previous default's lines cannot be served. No
+pre-warm is done; the new default's cache fills lazily from live analysis.
+
+> **Engine nuance (not a caching concern):** the engine's multi-PV `AnalyzePosition` stream
+> currently runs the tier-1 `Search` for *every* non-`Basic` bot (`searchMultiPv` in
+> `EngineServiceLive`), so the *lines* produced are identical regardless of which bot the
+> session selects — `bot_id` only gates `Basic` rejection and which results get cached. Keying
+> the cache by `bot_id` is therefore forward-compatible: if/when per-bot analysis depth lands,
+> no migration is required. Flipping the default is a UX/labelling change today, not a change in
+> the analysis output.
+
 **Part B — rating leaderboards (match-manager).** A Redis sorted set `leaderboard:rating`
 of `userId → Glicko-2 rating` is the ranked read model: top-N is `ZREVRANGE`, "your rank" is
 `ZREVRANK`, both O(log N). It is fed by the **same Stage 3 rating consumer**

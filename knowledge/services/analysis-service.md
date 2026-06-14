@@ -60,7 +60,12 @@ Games are never deleted by the user. The library grows as games are imported.
 ### AnalysisResult (analysis cache)
 
 One document per engine depth update for a given position. Stored only when `bot_id` matches
-the server-configured `DefaultAnalysisBotId`.
+the server-configured `DefaultAnalysisBotId`. The default is the **tier-5 knowledge
+("classical") bot `knowledge_classical`** (task 26; `Analysis__DefaultBotId` in helm). The
+cache key includes `bot_id` (Mongo filter `{fen, bot_id}`, Redis `analysis:{botId}:{fen}`), so
+a default change never serves stale lines from a previous default — old entries are keyed under
+the old bot and the startup bot-change scrape purges them. See
+[caching-and-read-models.md](../architecture/caching-and-read-models.md) (Stage 4, task 26).
 
 | Field | Type | Notes |
 |---|---|---|
