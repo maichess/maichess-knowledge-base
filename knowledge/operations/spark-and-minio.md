@@ -69,4 +69,43 @@ with headroom; ideally give MinIO its own disk.
 Keep Spark metrics + the operator's status flowing into the existing Prometheus/Grafana/Tempo
 stack; watch executor CPU/memory and `maichess-mega` headroom (`jvm_threads_current`, node
 pressure) during ingestion.
+
+## As-built (task 02 — `maichess-deploy`)
+
+The data lake + Spark platform landed in the Helm chart, **staging-gated** (on in
+`values-staging.yaml`, off in base `values.yaml`):
+
+- **Node pinning.** Both the hub (`ubuntu`) and `maichess-mega` share
+  `maichess/role=primary`, so the role-affinity helper is *not* enough to keep heavy work
+  off the hub. MinIO + the Spark Operator pods pin by **hostname** via the
+  `maichess.nodeSelectorCompute` helper (`kubernetes.io/hostname`, default `vps-771074`,
+  overridable with `insights.computeNodeHostname`). Spark driver/executor pinning is set on
+  the `SparkApplication` manifests (tasks 03/04) using the same value.
+- **MinIO** (`templates/minio.yaml`): single-node StatefulSet, local-path PVC **100Gi** base
+  / **40Gi** staging (raise for full-month ingestion), buckets `insights-raw` /
+  `insights-parsed` / `insights-agg` created by a `minio-buckets-init` post-install Job
+  (mirrors `kafka-topics-init`). Root creds via `maichess-app-secrets`
+  (`minio-root-user` / `minio-root-password`).
+- **Spark Operator**: Kubeflow `spark-operator` **2.1.1** Helm dependency (alias
+  `sparkOperator`, `fullnameOverride: spark-operator` to keep names RFC1123-lowercase),
+  `spark.jobNamespaces` = the release namespace, operator-managed `spark` driver SA.
+- **Blast-radius caps** (`templates/spark-resource-governance.yaml`, gated on
+  `sparkOperator.enabled`): a low **PriorityClass** `insights-low-priority` (value **-10**,
+  preempted first) + a namespace **ResourceQuota** *scoped to that class* at **12 cores /
+  20Gi** (requests=limits) — so it caps only Spark, not the stateless replicas sharing mega.
+- **RBAC** (`templates/insights-rbac.yaml`): `insights-service` SA + Role/RoleBinding to
+  create/watch `SparkApplication`/`ScheduledSparkApplication` and read pod logs.
+- **`insights-db`** (`templates/insights-db.yaml`): a DatabaseService Mongo instance like
+  `anticheat-db`, gated on `insights.enabled`. Kept **off** until the database-service
+  `insights` migration set exists (tasks 03–05) — an unknown migration domain crash-loops
+  the instance, so the master `insights.enabled` gate is decoupled from the operator/MinIO
+  infra gates.
+- **Custom Spark image** (`maichess-insights-spark` repo): Scala **2.13** built from the
+  Apache Spark **3.5.3** `scala2.13` distribution tarball (the official `apache/spark` images
+  are 2.12-only) + `hadoop-aws` 3.3.4 / `aws-java-sdk-bundle` 1.12.262 (S3A→MinIO) +
+  `mongo-spark-connector_2.13` 10.4.1. Published as
+  `ghcr.io/maichess/maichess-insights-spark` via `docker-publish.yml`.
+- **`flost` burst** (opt-in, default off): `insights.spark.flostBurst.enabled` carries a
+  toleration for the map-only parse stage onto the burst node; shuffle/reduce stays local on
+  mega.
 </content>

@@ -40,7 +40,7 @@ lives under [`../knowledge/`](../knowledge/). Shared rules every spec assumes ar
 | 28 | Auth: premature logout / couple session to activity | ✅ | [spec](implemented/28-fix-premature-logout.md) | — |
 | 29 | Strongest-bot search/eval hardening + variant-aware multi-PV analysis | ✅ | [spec](implemented/29-strongest-bot-search-eval-hardening.md) | [engine CLAUDE.md](../../services/maichess-engine-service/CLAUDE.md) |
 | 30 | Strongest-bot endgame tablebase hardening (local source + caching + analysis WDL) | ⬜ | [spec](planned/30-strongest-bot-tablebase-hardening.md) | [engine CLAUDE.md](../../services/maichess-engine-service/CLAUDE.md) |
-| 31 | Insights & Spark analytics (historical-game analysis) | ⬜ | [program](planned/insights/README.md) | [insights-and-spark](../knowledge/architecture/insights-and-spark.md) |
+| 31 | Insights & Spark analytics (historical-game analysis) | 🟡 | [program](planned/insights/README.md) | [insights-and-spark](../knowledge/architecture/insights-and-spark.md) |
 
 ## UX bug-fix / feature batch (2026-06-12) — client changes shipped inline
 
