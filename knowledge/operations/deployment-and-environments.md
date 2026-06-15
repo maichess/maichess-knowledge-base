@@ -128,6 +128,50 @@ whole change-data-capture and read-model stack:
 - `elasticsearch` / `anticheat` / `search-service` templates exist but are gated OFF in
   staging.
 
+## Rollout strategy (why deploys used to hang on old pods)
+
+App Deployments (`_app-deployment.tpl`) ship a **zero-surge** rolling update —
+`strategy.type: RollingUpdate`, `maxSurge: 0`, `maxUnavailable: 1` (overridable
+per service via the macro's `strategyType` / `maxSurge` / `maxUnavailable`).
+
+Without this they inherited the Kubernetes default (`maxSurge 25%` /
+`maxUnavailable 25%`), which at `replicas: 1` rounds `maxUnavailable` **down to 0**:
+a new pod must schedule *before* the old one may terminate. Both deploy workflows
+restart **every** app service at once (`kubectl rollout restart -l
+maichess.io/container-update=true`), and the resource-tight `ubuntu` node can't fit
+the surge — the new pod stays `Pending`, the old pod never terminates, and `kubectl
+rollout status` blocks until timeout (the "old pods won't shut down / deploy hangs
+until the pipeline times out" symptom). Zero-surge frees the old pod's resources
+first, then schedules the new one — accepting a few seconds of per-service downtime
+(fine pre-launch). See also the full-restart resource note under *apiserver-endpoint
+quirk* above and [k3s-performance-and-threading.md](k3s-performance-and-threading.md).
+
+## Operational data maintenance (cleanup & reset)
+
+Routine data chores — purging the stale engine-analysis cache after the default bot
+changed, clearing games stuck at `status: ongoing`, flushing caches, rebuilding the
+Elasticsearch indexes, or a full clean-slate wipe — are handled by
+**`maichess-deploy/helm/scripts/maintenance.sh`**. Run it on the hub
+(`./helm/scripts/maintenance.sh <cmd> [--staging] [--yes]`); it talks to each store
+via `kubectl exec` so no credentials hit the command line.
+
+Full subcommand reference and recipes live in
+**`maichess-deploy/helm/scripts/MAINTENANCE.md`** — not repeated here. Two pitfalls
+worth flagging:
+
+- **ES reindex must not run as a blocking Helm hook.** The chart's `search-reindex`
+  Job is a `post-upgrade` hook, so `helm upgrade` waits on it and a large rebuild
+  stalls the whole deploy until timeout. The `update-containers.yml` `reindex` input
+  enables that hook deliberately; for routine work prefer
+  `maintenance.sh rebuild-search`, which drops the indexes and runs the reindex as a
+  **detached Job** that blocks nothing. Clean stale data first — fewer source docs
+  means a far faster rebuild. (ES is a derived, rebuildable read model — never a
+  source of truth; see [search-service.md](../services/search-service.md).)
+- **Stuck `ongoing` games** are removed at the read-model layer (Mongo `matches` +
+  Redis `match:live:*`); the projector does not resurrect them because its
+  `match.events.v1` offsets are already committed. A `reset-data --with-kafka` also
+  purges the event log itself.
+
 ## Validating chart changes safely
 
 A Go-template parse error aborts `helm upgrade` **before** it records a revision, so the
