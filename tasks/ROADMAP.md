@@ -40,6 +40,7 @@ lives under [`../knowledge/`](../knowledge/). Shared rules every spec assumes ar
 | 28 | Auth: premature logout / couple session to activity | ✅ | [spec](implemented/28-fix-premature-logout.md) | — |
 | 29 | Strongest-bot search/eval hardening + variant-aware multi-PV analysis | ✅ | [spec](implemented/29-strongest-bot-search-eval-hardening.md) | [engine CLAUDE.md](../../services/maichess-engine-service/CLAUDE.md) |
 | 30 | Strongest-bot endgame tablebase hardening (local source + caching + analysis WDL) | ⬜ | [spec](planned/30-strongest-bot-tablebase-hardening.md) | [engine CLAUDE.md](../../services/maichess-engine-service/CLAUDE.md) |
+| 31 | Insights & Spark analytics (historical-game analysis) | ⬜ | [program](planned/insights/README.md) | [insights-and-spark](../knowledge/architecture/insights-and-spark.md) |
 
 ## UX bug-fix / feature batch (2026-06-12) — client changes shipped inline
 
@@ -74,6 +75,23 @@ program** rather than a single spec:
   decommission gRPC + remove the registry. **Protobuf-first** — no new Avro is written.
 - **Design:** [event-driven-architecture](../knowledge/architecture/event-driven-architecture.md) and
   [serialization-protobuf-migration](../knowledge/architecture/serialization-protobuf-migration.md).
+
+## Insights & Spark analytics — its own program
+
+A new capability spanning a new service, a Scala Spark batch module, and new infrastructure, so it is a
+**dedicated, ordered task program** (task `31`) rather than a single spec:
+
+- **[tasks/planned/insights/](planned/insights/README.md)** — ⬜ **planned.** Download & analyze massive
+  historical chess corpora (built-in monthly [Lichess dumps](https://database.lichess.org/#standard_games),
+  manual PGN upload, pluggable sources) with **Apache Spark on k8s** → most successful openings, common
+  endgames/positions, and "tricky" (blunder ∩ think-time) positions. The program README holds the ordered
+  task list `01`–`07`: contracts + `insights-db` → MinIO + Spark Operator → Spark ingestion/parser →
+  Spark analysis jobs → .NET control plane → query API → client page. **Annotations-first** (Lichess
+  `%eval`/`%clk`), Spark node-pinned + resource-capped on `maichess-mega`.
+- **Design:** [insights-and-spark](../knowledge/architecture/insights-and-spark.md),
+  [spark-and-minio](../knowledge/operations/spark-and-minio.md), and
+  [insights-statistics](../knowledge/domain/insights-statistics.md).
+- **Dependency order:** `01 → 02 → 03 → 04 → 05 → 06 → 07` (`01`/`02` independent of each other).
 
 ## Dependency order (for the original feature batch)
 
