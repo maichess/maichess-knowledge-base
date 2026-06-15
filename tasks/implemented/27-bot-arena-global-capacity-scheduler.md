@@ -75,3 +75,31 @@ publish/bump handoff and update the client `ArenaGameRow`.
 - 100% on new non-excluded code; mirror exclusions into Stryker config. Watch the
   Reqnroll regex gotcha (`reqnroll-regex-vs-cucumber-gotcha`): anchor `(true|false)`-only
   step patterns with `^...$`.
+
+## Implemented (2026-06-15)
+
+- **Core fix (items 17 + 13).** `CollectionService.FillAvailableCapacityAsync(ct)`
+  is the single global reconcile: `budget = LaunchPlanner.LaunchableCount(cap,
+  running, pending)`, then it launches that many of the globally-pending games in
+  FIFO order (oldest collection `created_at`, then game `order`), promoting each
+  launched collection `pending → running`. Serialized with a `SemaphoreSlim`
+  (`CollectionService` now `IDisposable`). It replaces the old per-collection
+  `LaunchCollectionAsync` and is invoked from `CreateAsync`,
+  `HandleFinishedGameAsync` (after advancing the finishing collection), and the new
+  `CollectionService.SetConcurrencyLimitAsync` **on increase only**. New store
+  primitive `IArenaStore.ListPendingGamesAsync` (filtered `status="pending"` query;
+  excluded impl + fake). The `PUT /concurrency-limit` endpoint now routes through
+  `CollectionService` (was `ArenaSettingsService`) so a raise fills headroom at
+  once; `ArenaSettingsService` already cached the fresh value on set.
+- **Item 16 (per-game tag).** REST `GameResult` gained a `status` field
+  (`pending|running|finished`), set from `ArenaGame.Status` in `ResultViewBuilder`.
+  Contract: `arena.proto` gained `ArenaGameStatus` enum + `GameResult.status = 8`
+  (additive) and `rest/bot-arena.md` documents it — **published as contracts
+  v0.13.0**. Arena is REST-only and does **not** consume `arena.proto`, so no .NET
+  service needed a package bump for this. Client: `lib/models/arena.ts`
+  (`ArenaGameStatus` + `status`) and `ArenaCollectionDetail` `GameLink` now tags
+  "pending" vs "live" from `status` (and renders un-launched pending rows as static,
+  non-watchable).
+- **Tests:** new `Features/CapacityScheduler.feature` (7 scenarios) + steps; 104
+  tests, **100% line/branch/method**. Verified against the existing contracts
+  0.12.0 cache (no new package needed for the .NET build).

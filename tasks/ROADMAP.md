@@ -36,7 +36,7 @@ lives under [`../knowledge/`](../knowledge/). Shared rules every spec assumes ar
 | 24 | Search: partial matching, searchable names, bot games | ✅ | [spec](implemented/24-search-relevance-and-partial-matching.md) | [search-service](../knowledge/services/search-service.md) |
 | 25 | Fix: "All games" browser fails to load | ✅ | [spec](implemented/25-fix-all-games-fails-to-load.md) | [match-history-and-stats](../knowledge/domain/match-history-and-stats.md) |
 | 26 | Knowledge "classical" bot as default analysis engine + cache | ✅ | [spec](implemented/26-classical-bot-default-analysis.md) | [analysis-service](../knowledge/services/analysis-service.md) |
-| 27 | Bot arena: global capacity scheduler (pending starts + concurrency) | ⬜ | [spec](planned/27-bot-arena-global-capacity-scheduler.md) | [bot-arena-service](../knowledge/services/bot-arena-service.md) |
+| 27 | Bot arena: global capacity scheduler (pending starts + concurrency) | ✅ | [spec](implemented/27-bot-arena-global-capacity-scheduler.md) | [bot-arena-service](../knowledge/services/bot-arena-service.md) |
 | 28 | Auth: premature logout / couple session to activity | ✅ | [spec](implemented/28-fix-premature-logout.md) | — |
 | 29 | Strongest-bot search/eval hardening + variant-aware multi-PV analysis | ✅ | [spec](implemented/29-strongest-bot-search-eval-hardening.md) | [engine CLAUDE.md](../../services/maichess-engine-service/CLAUDE.md) |
 | 30 | Strongest-bot endgame tablebase hardening (local source + caching + analysis WDL) | ⬜ | [spec](planned/30-strongest-bot-tablebase-hardening.md) | [engine CLAUDE.md](../../services/maichess-engine-service/CLAUDE.md) |
@@ -59,7 +59,8 @@ larger / backend items above (21–28) were filed as specs. Shipped inline:
   player, not merely the initiator (`app/dashboard/page.tsx`).
 - **Arena collection live-vs-pending tag** — collection badge shows "live" only when a
   game is actually in flight (`running_games > 0`), else "pending"
-  (`ArenaCollectionList`/`Detail`). Per-game tag tracked in task 27.
+  (`ArenaCollectionList`/`Detail`). Per-game tag delivered in task 27 (per-game
+  `status` on `GameResult`).
 
 ## Event-driven (Kafka) migration — its own program
 

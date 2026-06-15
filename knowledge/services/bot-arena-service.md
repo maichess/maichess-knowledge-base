@@ -90,9 +90,40 @@ purely testable.
 
 A single **global** concurrency limit caps how many arena games run at once
 across all setups and all users. It is editable by any authenticated user (not
-per-user) and defaults to 4 until set. A background poller observes running
-games; as they finish, queued games are launched up to the spare capacity
-(`LaunchableCount = clamp(limit - running, 0, pending)`).
+per-user) and defaults to 4 until set.
+
+Scheduling is one **global reconcile** step (`CollectionService.FillAvailableCapacityAsync`)
+that fills spare capacity across the *whole* arena, not just one collection:
+`budget = LaunchableCount(limit, running, pending) = clamp(limit - running, 0,
+pending)`, then it launches that many queued games **oldest collection first**
+(FIFO by collection `created_at`, then game `order`), promoting each launched
+collection `pending → running`. It runs after every game completion (driven by the
+match-events Kafka consumer, see below), on collection creation, and when the
+limit is **raised** (the new headroom is filled at once). Lowering the limit
+launches nothing — in-flight games drain naturally until `running ≤ cap`.
+
+The reconcile is **serialized** with a `SemaphoreSlim`: several games can finish
+in one consumer batch and creates / limit changes can race them, so without the
+lock two reconciles could read the same `running` count and launch past the cap.
+
+> History: this replaced an earlier per-collection relaunch (which left a
+> collection created at full capacity stuck `pending` forever — nothing ever
+> retried it) and, before that, a 2-second polling loop (task 18 moved completion
+> observation onto Kafka `match.events.v1`; task 27 made the launch decision
+> global).
+
+Completion is event-driven: `Kafka/ArenaMatchCompletionConsumer` reacts to
+`MatchEnded` for games the arena spawned and calls `HandleFinishedGameAsync`,
+which advances the finishing collection and then runs the global reconcile.
+
+### Per-game live vs pending
+
+Each game carries its own arena status (`pending | running | finished`),
+surfaced on the REST `GameResult` (`status` field; `arena.proto`
+`ArenaGameStatus`). The match `result` stays `ongoing` for both queued and
+in-flight games, so `status` is what lets the client show a queued game as
+"pending" and only a launched one as "live" (and skip the un-launched game's
+empty match link).
 
 ## Match attribution and auth
 
@@ -131,8 +162,10 @@ Models in `lib/models/arena.ts`, hooks in `lib/hooks/useArena*.ts`.
 ## Testing
 
 Pure domain (expansion, scoring, tie-break ladder, bracket, launch planning) and
-the orchestration state machine are 100% covered with Reqnroll BDD; low-level
-calculations and adapters use xUnit. The database-service repository, Match
-Maker/Manager/Engine client adapters, the fire-and-forget poller loop, REST
-endpoint handlers, and DTOs are `[ExcludeFromCodeCoverage]` per the platform
-rules — the scheduling *decisions* they act on stay pure and tested.
+the orchestration state machine — including the global capacity reconcile (FIFO
+starts, raise-the-limit fills, never-exceed-cap under batched completions) — are
+100% covered with Reqnroll BDD; low-level calculations and adapters use xUnit. The
+database-service repository, Match Maker/Engine client adapters, the Kafka
+completion-consumer shell, REST endpoint handlers, and DTOs are
+`[ExcludeFromCodeCoverage]` per the platform rules — the scheduling *decisions*
+they act on stay pure and tested.
