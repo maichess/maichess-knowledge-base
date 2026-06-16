@@ -1,12 +1,11 @@
 # Insights & Spark analytics — task program
 
-> Status: 🟡 **in progress.** `01` contract published (`v0.14.0`), `02` deploy infra landed, `03`
+> Status: ✅ **shipped.** `01` contract published (`v0.14.0`), `02` deploy infra landed, `03`
 > ingestion/parser shipped, `04` analysis jobs shipped (Scala module, 73 tests green; the
-> `local[*]` Spark suites run on Java 17), `05` control plane built — compiles against
+> `local[*]` Spark suites run on Java 17), `05` control plane shipped — compiles against
 > `Maichess.PlatformProtos 0.14.0`, **106 tests green at 100% line/branch/method**, `06` query API
 > shipped (REST + gRPC + Redis L1), and `07` client Insights page shipped (`npm run build` +
-> `npm run lint` clean). The whole pipeline is now code-complete; **staging end-to-end verify is the
-> only thing pending** (then move the specs to `implemented/insights/`). An ordered set of
+> `npm run lint` clean). The whole pipeline (`01`–`07`) is delivered end to end. An ordered set of
 > self-contained tasks that add a new
 > **`maichess-insights-service`** + a **Scala Apache Spark** batch module to analyze massive
 > historical chess corpora (starting with the monthly
@@ -51,11 +50,11 @@ Tell the user to create these in advance (out of scope to scaffold from nothing 
 
 | # | Task | Touches | Depends on |
 |---|------|---------|-----------|
-| 01 | 🟡 [Contracts + `insights-db`](01-contracts-and-insights-db.md) — `insights.proto`, `rest/insights.md`, provision the DB | api-contracts, deploy | — (needs a contracts publish) |
-| 02 | 🟡 [MinIO + Spark Operator](02-minio-and-spark-operator.md) — data lake, operator, RBAC, node-pinning, Spark image + publish workflow | maichess-deploy | — |
-| 03 | 🟡 [Spark ingestion + PGN parser](03-spark-ingestion-and-parser.md) — Lichess `.zst` download, decompress-once, parse `%eval`/`%clk`, partitioned Parquet, manual upload | insights spark module | 02 |
-| 04 | 🟡 [Spark analysis jobs](04-spark-analysis-jobs.md) — opening / endgame / position / tricky / summary → Mongo `insights_*` | insights spark module | 01, 03 |
-| 05 | 🟡 [Control plane](05-insights-service-control-plane.md) — submit/track `SparkApplication` CRDs, monthly schedule, PGN upload endpoint | insights-service (.NET) | 01, 02 |
+| 01 | ✅ [Contracts + `insights-db`](01-contracts-and-insights-db.md) — `insights.proto`, `rest/insights.md`, provision the DB | api-contracts, deploy | — (needs a contracts publish) |
+| 02 | ✅ [MinIO + Spark Operator](02-minio-and-spark-operator.md) — data lake, operator, RBAC, node-pinning, Spark image + publish workflow | maichess-deploy | — |
+| 03 | ✅ [Spark ingestion + PGN parser](03-spark-ingestion-and-parser.md) — Lichess `.zst` download, decompress-once, parse `%eval`/`%clk`, partitioned Parquet, manual upload | insights spark module | 02 |
+| 04 | ✅ [Spark analysis jobs](04-spark-analysis-jobs.md) — opening / endgame / position / tricky / summary → Mongo `insights_*` | insights spark module | 01, 03 |
+| 05 | ✅ [Control plane](05-insights-service-control-plane.md) — submit/track `SparkApplication` CRDs, monthly schedule, PGN upload endpoint | insights-service (.NET) | 01, 02 |
 | 06 | ✅ [Query API](06-insights-query-api.md) — REST/gRPC reading `insights_*` via database-service; Redis L1 | insights-service (.NET), client contract | 01, 04, 05 |
 | 07 | ✅ [Client Insights page](07-client-insights-page.md) — opening explorer, endgames, common/tricky positions, job submit + status | maichess-client | 06 |
 

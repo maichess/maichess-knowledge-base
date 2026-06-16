@@ -1,6 +1,6 @@
 # Insights & Spark analytics
 
-> Status: ⬜ **planned** (task program [`tasks/planned/insights/`](../../tasks/planned/insights/README.md)).
+> Status: ✅ **shipped** (task program [`tasks/implemented/insights/`](../../tasks/implemented/insights/README.md)).
 > This ADR records the decisions; the per-task specs implement them.
 
 ## Problem
