@@ -1,7 +1,9 @@
 # Insights & Spark analytics — task program
 
-> Status: 🟡 **in progress.** `01` contract authored (pending the `v0.14.0` publish) and `02`
-> deploy infra landed; `03`–`07` still planned. An ordered set of self-contained tasks that add a new
+> Status: 🟡 **in progress.** `01` contract published (`v0.14.0`), `02` deploy infra landed, `03`
+> ingestion/parser shipped, and `04` analysis jobs shipped (Scala module, 73 tests green; the
+> `local[*]` Spark suites run on Java 17); `05`–`07` remaining. An ordered set of self-contained tasks
+> that add a new
 > **`maichess-insights-service`** + a **Scala Apache Spark** batch module to analyze massive
 > historical chess corpora (starting with the monthly
 > [Lichess database dumps](https://database.lichess.org/#standard_games)). Read the design first:
@@ -47,8 +49,8 @@ Tell the user to create these in advance (out of scope to scaffold from nothing 
 |---|------|---------|-----------|
 | 01 | 🟡 [Contracts + `insights-db`](01-contracts-and-insights-db.md) — `insights.proto`, `rest/insights.md`, provision the DB | api-contracts, deploy | — (needs a contracts publish) |
 | 02 | 🟡 [MinIO + Spark Operator](02-minio-and-spark-operator.md) — data lake, operator, RBAC, node-pinning, Spark image + publish workflow | maichess-deploy | — |
-| 03 | [Spark ingestion + PGN parser](03-spark-ingestion-and-parser.md) — Lichess `.zst` download, decompress-once, parse `%eval`/`%clk`, partitioned Parquet, manual upload | insights spark module | 02 |
-| 04 | [Spark analysis jobs](04-spark-analysis-jobs.md) — opening / endgame / position / tricky → Mongo `insights_*` | insights spark module | 01, 03 |
+| 03 | 🟡 [Spark ingestion + PGN parser](03-spark-ingestion-and-parser.md) — Lichess `.zst` download, decompress-once, parse `%eval`/`%clk`, partitioned Parquet, manual upload | insights spark module | 02 |
+| 04 | 🟡 [Spark analysis jobs](04-spark-analysis-jobs.md) — opening / endgame / position / tricky / summary → Mongo `insights_*` | insights spark module | 01, 03 |
 | 05 | [Control plane](05-insights-service-control-plane.md) — submit/track `SparkApplication` CRDs, monthly schedule, PGN upload endpoint | insights-service (.NET) | 01, 02 |
 | 06 | [Query API](06-insights-query-api.md) — REST/gRPC reading `insights_*` via database-service; Redis L1 | insights-service (.NET), client contract | 01, 04, 05 |
 | 07 | [Client Insights page](07-client-insights-page.md) — opening explorer, endgames, common/tricky positions, job submit + status | maichess-client | 06 |

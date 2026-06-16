@@ -30,26 +30,46 @@ over months**. No board replay needed — ECO/opening are in the PGN header.
 ### Common endgames (`insights_endgames`)
 A position is an *endgame* when total piece count ≤ 7. Classify by **material signature** —
 the multiset of non-king pieces per side written canonically, stronger side first (e.g. `KRPvKR`,
-`KQvKR`, `KBNvK`). Report frequency and **result tendency** (how often the side-to-move/stronger
-side converts to a win vs draw). Requires board replay to reach endgame FENs.
+`KQvKR`, `KBNvK`); equal-strength signatures order the lexicographically smaller side string first
+(ties → White is the "stronger" side). Report frequency and **result tendency** (how often the
+stronger side converts to a win vs draw vs loss). Requires board replay to reach endgame FENs.
+
+*Counting:* each `(game, signature, stronger-side)` reached is counted **once** — a long endgame
+lingering on one signature does not inflate its frequency — and conversion uses the game's final
+result. Frequency is therefore the number of games that reached the signature; `strongerSideWinRate`
+/ `drawRate` / `strongerSideLossRate` are fractions of those games.
 
 ### Common positions (`insights_positions`)
 Most-reached **normalized FENs**: the FEN with the halfmove-clock and fullmove-number fields
 stripped (so transpositions and clock differences collapse), keeping piece placement, side to move,
-castling, and en-passant. Optionally exclude positions still inside opening book (early plies) to
-surface interesting middlegame convergence. Requires board replay.
+castling, and en-passant. Optionally exclude positions still inside opening book (early plies, ply ≤
+`bookPlies`) to surface interesting middlegame convergence. Requires board replay.
+
+*Counting:* a position is counted **once per game** that reaches it; `reachCount` is the number of
+distinct games, and `whiteWinRate` / `blackWinRate` / `drawRate` are over those games' results. A
+`minReach` floor drops rarely-seen positions.
 
 ### Tricky positions (`insights_tricky`)
 The intersection of two signals, both derived from annotations (no engine):
 - **Blunder / eval-swing:** average **centipawn loss** of the move actually played from a position
   (drop in `eval_cp` from `fen_before` to after the played move, from White's perspective), and the
   **blunder probability** (fraction of times the move played loses more than a threshold, e.g. ≥300cp).
-- **Think time:** time spent on the move, from consecutive `%clk` deltas (accounting for increment).
+- **Think time:** time spent on the move, from consecutive `%clk` deltas for the *same side*. The
+  eval *before* a move is the previous ply's `eval_cp`; the eval *after* is the move's own `eval_cp`.
 
-"Trickiest" = positions reached often enough (min support) with **both high average centipawn loss
-and high think time** — i.e. where humans most often blunder under time pressure. (Optional later:
-fold in `engine-service` `AnalyzePosition` evals for top-N positions to corroborate the `%eval`
-signal independently.)
+"Trickiest" = positions reached often enough (`minSupport` played moves) with **both high average
+centipawn loss and high think time** — i.e. where humans most often blunder under time pressure.
+`support` is the number of moves observed from the position (one per ply, not per game). (Optional
+later: fold in `engine-service` `AnalyzePosition` evals for top-N positions to corroborate the
+`%eval` signal independently.)
+
+> **Increment caveat.** The parsed `plies` schema (task 03) does not preserve the clock increment —
+> the `TimeControl` header is bucketed to a category (`blitz`/`rapid`/…) at ingestion. The tricky
+> job therefore computes think time from the raw same-side clock delta **without** adding the
+> increment back, a uniform per-move understatement that does not affect the relative ranking. The
+> pure `ThinkTime.spentMs` helper still models the increment for correctness and is unit-tested for
+> it; restoring increment-accurate think time would require carrying raw `time_control` (or the
+> parsed increment) on `games`/`plies`.
 
 ### Corpus summary (`insights_summary`)
 Headline aggregates per corpus: total games, date range, rating distribution, draw rate, average
