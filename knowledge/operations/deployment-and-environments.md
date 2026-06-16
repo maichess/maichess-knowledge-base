@@ -74,6 +74,14 @@ still resource-tight on that node — avoid restarting everything unless a deplo
   `workflow_dispatch`, environment `staging`). It SSHes to the node, checks out
   `dev`, `helm upgrade`s the `maichess-staging` release, then `rollout restart` +
   `rollout status`.
+- **`wipe_data` input (fresh-environment toggle).** `update-containers.yml` has an
+  opt-in `wipe_data` boolean that, *after* the chart is deployed, runs
+  `helm/scripts/maintenance.sh reset-data --with-kafka --yes` for each selected
+  environment — clearing Mongo + Redis + Kafka + Elasticsearch so the new images
+  start on a clean slate. It is meant for staging. **Production is interlocked:**
+  `wipe_data` only touches the `maichess` namespace when the separate
+  `confirm_prod_wipe` input is set to exactly `WIPE-PROD-DATA`; otherwise a
+  `prod`/`both` run wipes staging only and logs that prod was skipped.
 - **Mutable nightly tags + `imagePullPolicy: Always`:** a pod restart re-pulls the
   latest `:nightly`. A new image can therefore land against an *unchanged* (older)
   rendered chart — if the chart adds a new required env/secret, the new image will
@@ -162,11 +170,13 @@ worth flagging:
 - **ES reindex must not run as a blocking Helm hook.** The chart's `search-reindex`
   Job is a `post-upgrade` hook, so `helm upgrade` waits on it and a large rebuild
   stalls the whole deploy until timeout. The `update-containers.yml` `reindex` input
-  enables that hook deliberately; for routine work prefer
-  `maintenance.sh rebuild-search`, which drops the indexes and runs the reindex as a
-  **detached Job** that blocks nothing. Clean stale data first — fewer source docs
-  means a far faster rebuild. (ES is a derived, rebuildable read model — never a
-  source of truth; see [search-service.md](../services/search-service.md).)
+  therefore does **not** enable that hook — it deploys `--no-hooks` and, after the
+  rollout, launches `maintenance.sh rebuild-search` (the **detached Job** form, no
+  `--wait`), so the rebuild outlives the pipeline instead of timing it out.
+  (Historically the input enabled the blocking hook, which made the toggle unusable.)
+  Clean stale data first — fewer source docs means a far faster rebuild. (ES is a
+  derived, rebuildable read model — never a source of truth; see
+  [search-service.md](../services/search-service.md).)
 - **Stuck `ongoing` games** are removed at the read-model layer (Mongo `matches` +
   Redis `match:live:*`); the projector does not resurrect them because its
   `match.events.v1` offsets are already committed. A `reset-data --with-kafka` also
