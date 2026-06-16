@@ -83,5 +83,23 @@ Ship **Lichess + manual PGN upload** first behind a `source adapter` interface s
 **Chess.com monthly archives (JSON API)** and **TWIC weekly PGN** can be added later
 without reworking the pipeline. (Other corpora: FICS games DB, PGN Mentor, Lumbra's Giga
 Base, Lichess broadcasts.)
+
+## Read API & client surface
+
+The query endpoints (`GetTopOpenings` / `GetCommonEndgames` / `GetCommonPositions` /
+`GetTrickyPositions` / `GetCorpusSummary` / `ListCorpora`, REST + gRPC) read the
+materialized `insights_*` rows through database-service gRPC, fronted by a rebuildable
+**Redis L1 cache** on the hot aggregates (top openings, summary, tricky), keyed by corpus
+id + query params — the same `allkeys-lru`-tolerant seam analysis-service uses (noted in
+[caching-and-read-models](caching-and-read-models.md)).
+
+The `maichess-client` **Insights page** lives under the Tools menu at `/tools/insights`
+(`requireUser`, all signed-in users). The landing view launches ingestions (Lichess-month
+or PGN upload, with an optional rating/time/sample filter) and analysis runs, and polls
+job status; `/tools/insights/{id}` is the per-corpus explorer — a summary header plus tabs
+for openings (win/draw/loss bars + month-over-month trend), endgames (signature conversion
+tendency), and common / tricky positions with board previews. All data flows through the
+client REST proxy (`/api/insights/*` → `INSIGHTS_SERVICE_URL`); no contract change was
+needed (the page consumes task 01's REST surface).
 </content>
 </invoke>

@@ -38,6 +38,7 @@ service's cache by reaching across a boundary — it consumes the fact and updat
 | `analysis_results` hot positions | Redis L1 over Mongo L2 | append-only | cache-aside, keyed `(fen, bot_id)` |
 | Leaderboards / rating ranges | Redis **sorted set** (`ZSET`) | mutable | rating event consumer |
 | Arena standings | Redis | recomputed | tournament event consumer |
+| Insights hot aggregates (top openings, summary, tricky) | Redis L1 over Mongo `insights_*` | rebuildable | cache-aside in insights-service, keyed `(corpus_id, query params)` (`tasks/insights/06`) |
 | Games / match / position **search** | Elasticsearch | derived | see [search-elasticsearch.md](../services/search-service.md) |
 
 ### Redis vs KTable — the deliberate split
