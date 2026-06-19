@@ -67,4 +67,3 @@ job args/config).
 
 - Update [insights-statistics](../../../knowledge/domain/insights-statistics.md) if the parsed schema
   changes. Mark task 03 `🟡` in [ROADMAP.md](../../ROADMAP.md).
-</content>

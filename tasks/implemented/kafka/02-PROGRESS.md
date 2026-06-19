@@ -135,4 +135,3 @@ Carryover for later tasks (NOT this task):
 - Staging end-to-end verification (kubectl logs; a live human move appearing without a
   reload with `Socket__Transport: kafka`) could not be run from this shell — left for
   whoever has cluster access. The code path + WARN logs are in place.
-</content>

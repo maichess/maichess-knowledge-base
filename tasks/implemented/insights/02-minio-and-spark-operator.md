@@ -63,4 +63,3 @@ None.
 
 - Update [operations/spark-and-minio](../../../knowledge/operations/spark-and-minio.md) with the
   as-built resource caps / PVC sizes. Mark task 02 `🟡` in [ROADMAP.md](../../ROADMAP.md).
-</content>

@@ -55,4 +55,3 @@ None (consumes task 01's REST surface).
 
 - Mark task 07 `✅` in [ROADMAP.md](../../ROADMAP.md) when the page ships (and move the whole program's
   specs to `implemented/insights/` once the end-to-end flow is verified live, per conventions item 8).
-</content>

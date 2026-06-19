@@ -81,4 +81,3 @@ contract (`01`) and the operator/RBAC (`02`); `06` needs jobs writing data (`04`
   handlers, DTO records). Scala Spark: pure feature-extraction functions unit-tested with scalatest;
   transformations tested against a `local[*]` `SparkSession` over fixture PGNs.
 - **Keep the KB current.** Update the three insights docs + `ROADMAP.md` (mark `🟡`/`✅`) as work ships.
-</content>

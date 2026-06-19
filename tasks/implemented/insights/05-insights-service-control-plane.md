@@ -62,4 +62,3 @@ None new (implements task 01's contract). If a field is missing, follow the publ
 
 - Update [insights-and-spark](../../../knowledge/architecture/insights-and-spark.md) if the
   launch/seam design diverges. Mark task 05 `🟡` in [ROADMAP.md](../../ROADMAP.md).
-</content>

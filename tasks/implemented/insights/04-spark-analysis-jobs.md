@@ -62,4 +62,3 @@ None.
 
 - Keep [insights-statistics](../../../knowledge/domain/insights-statistics.md) in sync with what each
   job actually computes. Mark task 04 `🟡` in [ROADMAP.md](../../ROADMAP.md).
-</content>

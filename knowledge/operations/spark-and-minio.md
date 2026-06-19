@@ -108,4 +108,3 @@ The data lake + Spark platform landed in the Helm chart, **staging-gated** (on i
 - **`flost` burst** (opt-in, default off): `insights.spark.flostBurst.enabled` carries a
   toleration for the map-only parse stage onto the burst node; shuffle/reduce stays local on
   mega.
-</content>

@@ -101,5 +101,3 @@ for openings (win/draw/loss bars + month-over-month trend), endgames (signature 
 tendency), and common / tricky positions with board previews. All data flows through the
 client REST proxy (`/api/insights/*` → `INSIGHTS_SERVICE_URL`); no contract change was
 needed (the page consumes task 01's REST surface).
-</content>
-</invoke>

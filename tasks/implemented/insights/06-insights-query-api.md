@@ -52,4 +52,3 @@ None new (implements task 01). Any gap → publish handoff + `CONTRACT_NOTES.md`
 - Note the insights L1 cache in
   [caching-and-read-models](../../../knowledge/architecture/caching-and-read-models.md). Mark task 06
   `🟡` in [ROADMAP.md](../../ROADMAP.md).
-</content>

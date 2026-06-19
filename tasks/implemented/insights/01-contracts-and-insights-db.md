@@ -66,4 +66,3 @@ DatabaseService instance, so subsequent tasks implement against a published cont
   [insights-and-spark](../../../knowledge/architecture/insights-and-spark.md) and
   [insights-statistics](../../../knowledge/domain/insights-statistics.md); update them if the contract
   shape diverges. Mark task 01 `🟡` in [ROADMAP.md](../../ROADMAP.md) when the contract is published.
-</content>

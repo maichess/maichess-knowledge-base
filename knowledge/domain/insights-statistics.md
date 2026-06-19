@@ -84,4 +84,3 @@ program matures.
 Each ingestion/analysis run is recorded with its corpus id, source descriptor, filter, status
 (`pending` / `running` / `succeeded` / `failed`), timestamps, and the `SparkApplication` name — read
 by the control plane to track and list jobs.
-</content>

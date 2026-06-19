@@ -119,5 +119,3 @@ tests. See CONTRACT_NOTES.md "Match command side + 202 (Kafka task 06)" for the 
   `Kafka/MatchHistoryProjection.cs`; live shell `Events/MatchEventProjectorConsumer.cs`.
 - Existing socket-push builder pattern: `MatchProjector.Push/MoveMade/MatchEndedPush`.
 - Coverage exclusions list lives in the service `CLAUDE.md` + `stryker-config.json`.
-</content>
-</invoke>
