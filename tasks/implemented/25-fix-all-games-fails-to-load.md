@@ -1,5 +1,10 @@
 # 25 — Fix: "All games" browser fails to load
 
+> ⚠️ **The 4 MB-cap resolution below was a misdiagnosis.** The browse kept 500-ing
+> after that fix. The actual root cause and fix are in
+> **[Correction (2026-06-19)](#correction-2026-06-19--the-4-mb-diagnosis-was-wrong)**
+> at the bottom — read that, not the original resolution.
+
 > Read `conventions.md` and
 > [match-history-and-stats](../../knowledge/domain/match-history-and-stats.md) first.
 > Closely tied to task **07** (Dev all-games browser, 🟡 in progress). Touches
@@ -92,3 +97,44 @@ growing the in-memory scan. Out of scope here.
 **Verify (manual, user):** with a populated match-db (or after a bot-arena run that creates
 >~few-hundred matches), open Tools → **All games** → rows render newest-first and paginate;
 filter by player / initiator / status / source / date; rows open the viewer.
+
+---
+
+## Correction (2026-06-19) — the 4 MB diagnosis was wrong
+
+The 4 MB-cap fix above was a **never-confirmed hypothesis and did not fix the bug.** After it
+shipped, the browse **still 500s for any games** (staging `GET /api/dev/games?page=1` → 500,
+forwarded verbatim from match-manager `GET /matches/search`). The 4 MB theory cannot explain
+that: ASP.NET Core gRPC servers send **uncapped by default** (`MaxSendMessageSize = null`),
+the receive cap was already lifted in `Program.cs`, and a size limit could never fail on a
+*small* dataset. The `MaxReceiveMessageSize = null` line is correct in general (see the
+[grpc-default-4mb-receive-cap] reference) but is **not** what was breaking this view.
+
+**Actual root cause — unguarded username resolution.** The All-games browse is the *only*
+read that resolves player display names across **every** user and **every** historical match.
+`MatchService.ResolveUsernameAsync` reads the Redis user-replica and, on a miss, falls back to
+user-service `GetUser`. `GetUser` **throws** an `RpcException` for an id it cannot resolve —
+`NotFound` (deleted account) or `InvalidArgument` (legacy / non-UUID id)
+(`MaichessUserService/Grpc/UsersGrpcService.cs`). That exception was **unhandled**, so a single
+match in page 1 whose `white` / `black` / `created_by` id no longer resolves takes down the
+entire endpoint → 500 → the client renders "Failed to load games." The scoped reads never hit
+it: `GET /matches` (ongoing) resolves only current players, and `ListUserMatches` (a user's own
+Past Matches) resolves only the authenticated user's set — both reference live, valid ids only.
+This is why *only* the global browse broke, and why it has been broken since the feature shipped.
+
+**Fix** (`MaichessMatchManagerService/Services/MatchService.cs`): name resolution is best-effort
+read enrichment, so the `GetUser` fallback is wrapped in `try/catch (RpcException)` and degrades
+to the raw id (mirroring bot-name resolution, which already falls back to the bot id). One
+unresolvable reference can no longer 500 the page. Match-manager only — no API/contract change.
+Tests: `UserReplicaResolutionTests.ResolveUsername_GetUserFails_FallsBackToId` (NotFound +
+InvalidArgument) and a `GrpcHelper.GrpcFault` helper; 344 unit tests green, `ResolveUsernameAsync`
+100% line+branch. **Pending end-to-end confirmation on staging** (the cluster's exact exception
+could not be read during diagnosis; this is code-backed). If it still 500s after deploy, capture
+the match-manager exception — the remaining suspect is the scale follow-up below.
+
+**Scale follow-up still open (unchanged):** the no-scope path loads the *whole* `matches`
+collection into match-manager and pages it in memory — O(collection) per load. If it ever needs
+to scale, push sort + paging to match-db (`ListRequest` already has `limit`/`offset`, a `Count`
+RPC exists; only a `sort` field is missing).
+
+[grpc-default-4mb-receive-cap]: ../../knowledge/domain/match-history-and-stats.md

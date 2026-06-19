@@ -48,13 +48,26 @@ direction toggle. It is served by `SearchMatches` (gRPC) / `GET /matches/search`
   `initiator_id` scope — the default browse — `SearchAsync` lists the **entire**
   `matches` collection in one `Database.List`, then the service filters/orders/pages
   it in memory. That single `ListResponse` can be large, so the match-manager →
-  match-db gRPC client is built with `MaxReceiveMessageSize = null` (Program.cs);
-  the stock 4 MB default would `RESOURCE_EXHAUSTED` past a few hundred matches and
-  surface as "Failed to load games" (task 25). The scoped path runs cheap equality
-  lookups (white/black/created_by) and is naturally small. This fetch-all-then-
-  filter design is intentional for a low-volume Dev tool; the scale lever, if ever
-  needed, is DB-side ordering + paging (`ListRequest` already has `limit`/`offset`;
-  a `Count` RPC already exists; only a `sort` field would be missing).
+  match-db gRPC client is built with `MaxReceiveMessageSize = null` (Program.cs) to
+  pre-empt the stock 4 MB receive cap. (Note: task 25 originally blamed this cap for
+  the "Failed to load games" 500, but that was a misdiagnosis — see "Resilient name
+  resolution" below.) The scoped path runs cheap equality lookups
+  (white/black/created_by) and is naturally small. This fetch-all-then-filter design
+  is intentional for a low-volume Dev tool; the scale lever, if ever needed, is
+  DB-side ordering + paging (`ListRequest` already has `limit`/`offset`; a `Count` RPC
+  already exists; only a `sort` field would be missing).
+- **Resilient name resolution (the real "fails to load" cause, fixed 2026-06-19).**
+  This browse is the only read that resolves player display names across *every* user
+  and *every* historical match, so it is uniquely exposed to a player id that no longer
+  resolves. `MatchService.ResolveUsernameAsync` falls back to user-service `GetUser` on
+  a user-replica miss, and `GetUser` throws `RpcException` (`NotFound` for a deleted
+  account, `InvalidArgument` for a legacy/non-UUID id). That throw was unhandled, so a
+  single stale reference in page 1 500-ed the whole endpoint — the actual reason the
+  browser never loaded. `ResolveUsernameAsync` now treats resolution as best-effort and
+  degrades to the raw id on `RpcException` (bot-name resolution already falls back to
+  the bot id). The scoped reads (ongoing `GET /matches`, a user's own `ListUserMatches`)
+  only reference live ids, which is why they never hit it. See task
+  [25-fix-all-games-fails-to-load](../../tasks/implemented/25-fix-all-games-fails-to-load.md).
 - **Read, so synchronous (post-Kafka).** Like the other list reads it queries the
   durable match-db materialised by the projector; it deliberately does **not**
   overlay the Redis live read model — rows link into the match/Watch viewer, which
